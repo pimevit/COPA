@@ -1,0 +1,170 @@
+[
+  {
+    "homeTeamCode": "MEX",
+    "awayTeamCode": "CAN",
+    "matchDate": "2026-06-11T19:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "USA",
+    "awayTeamCode": "BRA",
+    "matchDate": "2026-06-11T22:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "ARG",
+    "awayTeamCode": "FRA",
+    "matchDate": "2026-06-12T19:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "GER",
+    "awayTeamCode": "JPN",
+    "matchDate": "2026-06-12T22:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "ESP",
+    "awayTeamCode": "MAR",
+    "matchDate": "2026-06-13T19:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "POR",
+    "awayTeamCode": "SEN",
+    "matchDate": "2026-06-13T22:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "ENG",
+    "awayTeamCode": "URU",
+    "matchDate": "2026-06-14T19:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "NED",
+    "awayTeamCode": "ITA",
+    "matchDate": "2026-06-14T22:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "BRA",
+    "awayTeamCode": "CAN",
+    "matchDate": "2026-06-18T19:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "USA",
+    "awayTeamCode": "MEX",
+    "matchDate": "2026-06-18T22:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "FRA",
+    "awayTeamCode": "JPN",
+    "matchDate": "2026-06-19T19:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "ARG",
+    "awayTeamCode": "GER",
+    "matchDate": "2026-06-19T22:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "ESP",
+    "awayTeamCode": "SEN",
+    "matchDate": "2026-06-20T19:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "POR",
+    "awayTeamCode": "MAR",
+    "matchDate": "2026-06-20T22:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "ENG",
+    "awayTeamCode": "ITA",
+    "matchDate": "2026-06-21T19:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "NED",
+    "awayTeamCode": "URU",
+    "matchDate": "2026-06-21T22:00:00Z",
+    "stage": "Groups",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "BRA",
+    "awayTeamCode": "URU",
+    "matchDate": "2026-07-03T19:00:00Z",
+    "stage": "RoundOf16",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "ARG",
+    "awayTeamCode": "POR",
+    "matchDate": "2026-07-03T22:00:00Z",
+    "stage": "RoundOf16",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "FRA",
+    "awayTeamCode": "GER",
+    "matchDate": "2026-07-04T19:00:00Z",
+    "stage": "RoundOf16",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "ESP",
+    "awayTeamCode": "ENG",
+    "matchDate": "2026-07-04T22:00:00Z",
+    "stage": "RoundOf16",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "BRA",
+    "awayTeamCode": "FRA",
+    "matchDate": "2026-07-10T19:00:00Z",
+    "stage": "QuarterFinals",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "ARG",
+    "awayTeamCode": "ESP",
+    "matchDate": "2026-07-10T22:00:00Z",
+    "stage": "QuarterFinals",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "BRA",
+    "awayTeamCode": "ARG",
+    "matchDate": "2026-07-14T22:00:00Z",
+    "stage": "SemiFinals",
+    "status": "Scheduled"
+  },
+  {
+    "homeTeamCode": "BRA",
+    "awayTeamCode": "FRA",
+    "matchDate": "2026-07-19T22:00:00Z",
+    "stage": "Final",
+    "status": "Scheduled"
+  }
+]

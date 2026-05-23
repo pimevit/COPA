@@ -1,0 +1,36 @@
+# .NET
+bin/
+obj/
+TestResults/
+*.user
+*.rsuser
+
+# Node / Vite
+node_modules/
+dist/
+build/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# IDE / OS
+.vs/
+.vscode/
+.idea/
+.playwright-mcp/
+*.suo
+*.userosscache
+*.sln.docstates
+.DS_Store
+Thumbs.db
