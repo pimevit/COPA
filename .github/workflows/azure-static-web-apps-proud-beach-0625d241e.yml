@@ -1,20 +1,13 @@
-name: Frontend - Build and deploy to Azure Static Web App
+name: Azure Static Web Apps CI/CD
 
 on:
   push:
     branches:
       - master
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend-azure-static-webapp.yml'
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: frontend-azure-static-webapp-production
-  cancel-in-progress: true
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - master
 
 env:
   NODE_VERSION: '24.x'
@@ -22,32 +15,27 @@ env:
   DIST_LOCATION: frontend/dist
 
 jobs:
-  build-and-deploy:
-    name: Build and deploy frontend
+  build_and_deploy_job:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment:
-      name: production
-
+    name: Build and Deploy Job
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          lfs: false
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
       - name: Install frontend dependencies
         run: npm ci
         working-directory: ${{ env.APP_LOCATION }}
-
       - name: Test frontend
         run: npm test
         working-directory: ${{ env.APP_LOCATION }}
-
       - name: Validate production API URL
         env:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
@@ -56,18 +44,34 @@ jobs:
             echo "Repository variable VITE_API_BASE_URL must point to the backend App Service URL." >&2
             exit 1
           fi
-
       - name: Build frontend
         run: npm run build
         working-directory: ${{ env.APP_LOCATION }}
         env:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-
-      - name: Deploy to Azure Static Web Apps
+      - name: Build And Deploy
+        id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          action: upload
-          app_location: ${{ env.DIST_LOCATION }}
-          output_location: ''
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AGREEABLE_PEBBLE_069FE561E }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
+          action: "upload"
+          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
+          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
+          app_location: ${{ env.DIST_LOCATION }} # App source code path
+          api_location: "" # Api source code path - optional
+          output_location: "" # Built app content directory - optional
           skip_app_build: true
+          ###### End of Repository/Build Configurations ######
+
+  close_pull_request_job:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close Pull Request Job
+    steps:
+      - name: Close Pull Request
+        id: closepullrequest
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AGREEABLE_PEBBLE_069FE561E }}
+          action: "close"
