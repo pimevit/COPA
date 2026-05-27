@@ -16,9 +16,11 @@ using BolaoCopa.Application.Stats;
 using BolaoCopa.Application.Teams;
 using BolaoCopa.Domain.Scoring;
 using BolaoCopa.Infrastructure;
+using BolaoCopa.Infrastructure.Persistence;
 using BolaoCopa.Infrastructure.Persistence.Seeding;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 const string LocalFrontendCorsPolicy = "LocalFrontend";
@@ -95,6 +97,22 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    if (dbContext.Database.IsRelational())
+    {
+        app.Logger.LogInformation("Applying database migrations.");
+        await dbContext.Database.MigrateAsync();
+        app.Logger.LogInformation("Database migrations applied.");
+    }
+    else
+    {
+        app.Logger.LogInformation("Skipping database migrations because the configured provider is not relational.");
+    }
+}
 
 if (args.Contains("--seed", StringComparer.OrdinalIgnoreCase))
 {
