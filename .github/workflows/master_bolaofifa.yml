@@ -6,7 +6,7 @@ on:
       - master
     paths:
       - 'backend/**'
-      - '.github/workflows/backend-azure-webapp.yml'
+      - '.github/workflows/master_bolaofifa.yml'
   workflow_dispatch:
  
 permissions:
@@ -49,7 +49,7 @@ jobs:
         run: dotnet test ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-build --verbosity normal
  
       - name: Publish API
-        run: dotnet publish ${{ env.API_PROJECT_PATH }} --configuration ${{ env.CONFIGURATION }} --no-build --output ${{ env.PUBLISH_DIR }}
+        run: dotnet publish ${{ env.API_PROJECT_PATH }} --configuration ${{ env.CONFIGURATION }} --no-build --output ${{ env.PUBLISH_DIR }} -p:UseAppHost=false
  
       - name: Upload API artifact
         uses: actions/upload-artifact@v4
@@ -74,7 +74,17 @@ jobs:
         with:
           name: backend-api
           path: backend-api
- 
+
+      - name: Validate Azure publish profile secret
+        env:
+          AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        run: |
+          if [ -z "$AZURE_WEBAPP_PUBLISH_PROFILE" ]; then
+            echo "GitHub secret AZURE_WEBAPP_PUBLISH_PROFILE is required for azure/webapps-deploy." >&2
+            echo "Create it in GitHub repository secrets or in the production environment secrets." >&2
+            exit 1
+          fi
+
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
