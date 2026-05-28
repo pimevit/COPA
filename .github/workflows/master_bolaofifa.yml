@@ -77,10 +77,10 @@ jobs:
 
       - name: Validate Azure publish profile secret
         env:
-          AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_5B1C828832DA49A1BC66CCE272E200F3 }}
         run: |
           if [ -z "$AZURE_WEBAPP_PUBLISH_PROFILE" ]; then
-            echo "GitHub secret AZURE_WEBAPP_PUBLISH_PROFILE is required for azure/webapps-deploy." >&2
+            echo "GitHub secret AZUREAPPSERVICE_PUBLISHPROFILE_5B1C828832DA49A1BC66CCE272E200F3 is required for azure/webapps-deploy." >&2
             echo "Create it in GitHub repository secrets or in the production environment secrets." >&2
             exit 1
           fi
@@ -90,5 +90,5 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_5B1C828832DA49A1BC66CCE272E200F3 }}
           package: backend-api
