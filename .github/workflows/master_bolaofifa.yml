@@ -22,7 +22,7 @@ env:
   SOLUTION_PATH: backend/BolaoCopa.sln
   API_PROJECT_PATH: backend/src/BolaoCopa.Api/BolaoCopa.Api.csproj
   PUBLISH_DIR: backend/publish
-  AZURE_WEBAPP_NAME: bolaserieA
+  AZURE_WEBAPP_NAME: bolaoFIFA
  
 jobs:
   build:
@@ -90,5 +90,6 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          slot-name: Production
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_5B1C828832DA49A1BC66CCE272E200F3 }}
           package: backend-api
