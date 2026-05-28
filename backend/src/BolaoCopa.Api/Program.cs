@@ -23,9 +23,21 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
-const string LocalFrontendCorsPolicy = "LocalFrontend";
+const string FrontendCorsPolicy = "Frontend";
 
 var builder = WebApplication.CreateBuilder(args);
+var allowedCorsOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>()
+    ?.Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .Select(origin => origin.Trim().TrimEnd('/'))
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray();
+
+if (allowedCorsOrigins is null || allowedCorsOrigins.Length == 0)
+{
+    allowedCorsOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
+}
 
 ValidatorOptions.Global.LanguageManager.Culture = CultureInfo.GetCultureInfo("en");
 
@@ -51,10 +63,10 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequest>();
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(LocalFrontendCorsPolicy, policy =>
+    options.AddPolicy(FrontendCorsPolicy, policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+            .WithOrigins(allowedCorsOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -131,7 +143,7 @@ if (args.Contains("--seed", StringComparer.OrdinalIgnoreCase))
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
-app.UseCors(LocalFrontendCorsPolicy);
+app.UseCors(FrontendCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 

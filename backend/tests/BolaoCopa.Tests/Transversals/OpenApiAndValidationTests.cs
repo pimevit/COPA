@@ -67,12 +67,14 @@ public sealed class OpenApiAndValidationTests : IClassFixture<WebApplicationFact
         Assert.True(root.GetProperty("errors").TryGetProperty("Password", out _));
     }
 
-    [Fact]
-    public async Task LocalFrontendPreflight_ReturnsCorsHeaders()
+    [Theory]
+    [InlineData("http://localhost:5173")]
+    [InlineData("https://agreeable-pebble-069fe561e.7.azurestaticapps.net")]
+    public async Task AllowedFrontendPreflight_ReturnsCorsHeaders(string origin)
     {
         var client = factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Options, "/auth/register");
-        request.Headers.Add("Origin", "http://localhost:5173");
+        request.Headers.Add("Origin", origin);
         request.Headers.Add("Access-Control-Request-Method", "POST");
         request.Headers.Add("Access-Control-Request-Headers", "content-type");
 
@@ -80,7 +82,7 @@ public sealed class OpenApiAndValidationTests : IClassFixture<WebApplicationFact
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.True(response.Headers.TryGetValues("Access-Control-Allow-Origin", out var origins));
-        Assert.Contains("http://localhost:5173", origins);
+        Assert.Contains(origin, origins);
         Assert.True(response.Headers.TryGetValues("Access-Control-Allow-Methods", out var methods));
         Assert.Contains("POST", string.Join(",", methods));
     }
