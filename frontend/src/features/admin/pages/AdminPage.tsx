@@ -10,11 +10,16 @@ import { getStageLabel, getStatusLabel } from '../../matches/utils/labels'
 import { rankingQueryKey } from '../../ranking/hooks/useRanking'
 import { AuthenticatedNav } from '../../../routes/AuthenticatedNav'
 import type { MatchListItem, MatchStage } from '../../../types/matches'
+import type { AdminMaintenanceResponse } from '../api/adminMaintenanceApi'
 import {
   adminMatchesQueryKey,
+  teamsQueryKey,
+  useClearApplicationDataMutation,
   useAdminMatches,
   useAdminTeams,
   useCreateMatchMutation,
+  useImportBrasileiraoTeamsMutation,
+  useImportWorldCupTeamsMutation,
   useUpdateMatchResultMutation,
 } from '../hooks/useAdminMatches'
 
@@ -32,6 +37,9 @@ export function AdminPage() {
   const matchesQuery = useAdminMatches()
   const createMatchMutation = useCreateMatchMutation()
   const updateResultMutation = useUpdateMatchResultMutation()
+  const importBrasileiraoMutation = useImportBrasileiraoTeamsMutation()
+  const importWorldCupMutation = useImportWorldCupTeamsMutation()
+  const clearApplicationDataMutation = useClearApplicationDataMutation()
   const [homeTeamId, setHomeTeamId] = useState('')
   const [awayTeamId, setAwayTeamId] = useState('')
   const [stage, setStage] = useState<MatchStage>('Groups')
@@ -40,6 +48,8 @@ export function AdminPage() {
   const [createSuccess, setCreateSuccess] = useState<string | null>(null)
   const [resultError, setResultError] = useState<string | null>(null)
   const [resultSuccess, setResultSuccess] = useState<string | null>(null)
+  const [maintenanceError, setMaintenanceError] = useState<string | null>(null)
+  const [maintenanceSuccess, setMaintenanceSuccess] = useState<string | null>(null)
 
   const teams = teamsQuery.data ?? []
   const matches = useMemo(
@@ -51,6 +61,7 @@ export function AdminPage() {
   )
 
   async function refreshAdminData() {
+    await queryClient.invalidateQueries({ queryKey: teamsQueryKey })
     await queryClient.invalidateQueries({ queryKey: adminMatchesQueryKey })
     await queryClient.invalidateQueries({ queryKey: matchesQueryKey() })
     await queryClient.invalidateQueries({ queryKey: rankingQueryKey })
@@ -111,6 +122,42 @@ export function AdminPage() {
     }
   }
 
+  async function runMaintenanceAction(action: () => Promise<AdminMaintenanceResponse>) {
+    setMaintenanceError(null)
+    setMaintenanceSuccess(null)
+
+    try {
+      const result = await action()
+      await refreshAdminData()
+      setMaintenanceSuccess(formatMaintenanceResult(result))
+    } catch (error) {
+      setMaintenanceError(mapAdminError(error, 'Nao foi possivel executar a acao.'))
+    }
+  }
+
+  async function handleImportBrasileiraoTeams() {
+    await runMaintenanceAction(() => importBrasileiraoMutation.mutateAsync())
+  }
+
+  async function handleImportWorldCupTeams() {
+    await runMaintenanceAction(() => importWorldCupMutation.mutateAsync())
+  }
+
+  async function handleClearApplicationData() {
+    var confirmed = window.confirm('Limpar palpites, partidas e times? Usuarios serao preservados.')
+
+    if (!confirmed) {
+      return
+    }
+
+    await runMaintenanceAction(() => clearApplicationDataMutation.mutateAsync())
+  }
+
+  const isMaintenancePending =
+    importBrasileiraoMutation.isPending ||
+    importWorldCupMutation.isPending ||
+    clearApplicationDataMutation.isPending
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-950 dark:bg-slate-950 dark:text-slate-50 sm:px-6 lg:px-8">
       <section className="mx-auto flex w-full max-w-6xl flex-col gap-5">
@@ -126,6 +173,39 @@ export function AdminPage() {
             </p>
           </div>
         </header>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+          <h2 className="text-lg font-semibold tracking-normal">Manutencao de dados</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <button
+              className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400 dark:focus:ring-offset-slate-950"
+              disabled={isMaintenancePending}
+              onClick={() => void handleImportBrasileiraoTeams()}
+              type="button"
+            >
+              {importBrasileiraoMutation.isPending ? 'Inserindo...' : 'Inserir Brasileirao Serie A 2026'}
+            </button>
+            <button
+              className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400 dark:focus:ring-offset-slate-950"
+              disabled={isMaintenancePending}
+              onClick={() => void handleImportWorldCupTeams()}
+              type="button"
+            >
+              {importWorldCupMutation.isPending ? 'Inserindo...' : 'Inserir Copa 2026'}
+            </button>
+            <button
+              className="rounded-md border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950 dark:focus:ring-offset-slate-950"
+              disabled={isMaintenancePending}
+              onClick={() => void handleClearApplicationData()}
+              type="button"
+            >
+              {clearApplicationDataMutation.isPending ? 'Limpando...' : 'Limpar dados'}
+            </button>
+          </div>
+
+          {maintenanceError ? <FeedbackMessage tone="error" message={maintenanceError} /> : null}
+          {maintenanceSuccess ? <FeedbackMessage tone="success" message={maintenanceSuccess} /> : null}
+        </section>
 
         <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
           <h2 className="text-lg font-semibold tracking-normal">Cadastrar partida</h2>
@@ -355,7 +435,15 @@ function FeedbackMessage({ message, tone }: { message: string; tone: 'error' | '
   return <p className={`mt-3 rounded-md border px-3 py-2 text-sm font-medium ${classes}`}>{message}</p>
 }
 
-function mapAdminError(error: unknown): string {
+function formatMaintenanceResult(result: AdminMaintenanceResponse): string {
+  if (result.action === 'application-data-reset') {
+    return `Dados limpos: ${result.deletedBets} palpites, ${result.deletedMatches} partidas e ${result.deletedTeams} times removidos.`
+  }
+
+  return `Times processados: ${result.insertedTeams} inseridos e ${result.updatedTeams} atualizados.`
+}
+
+function mapAdminError(error: unknown, fallback = 'Nao foi possivel salvar.'): string {
   if (error instanceof ApiError) {
     if (error.status === 403) {
       return 'Acesso restrito a administradores.'
@@ -370,5 +458,5 @@ function mapAdminError(error: unknown): string {
     }
   }
 
-  return 'Nao foi possivel salvar.'
+  return fallback
 }

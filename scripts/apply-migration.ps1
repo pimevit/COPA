@@ -33,7 +33,6 @@ try {
     }
 
     Invoke-CheckedCommand dotnet ef database update --project $infrastructureProject --startup-project $apiProject
-    Invoke-CheckedCommand dotnet run --project $apiProject -- --seed
 }
 finally {
     Pop-Location

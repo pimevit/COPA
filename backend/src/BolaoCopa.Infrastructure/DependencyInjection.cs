@@ -5,11 +5,11 @@ using BolaoCopa.Application.Matches.Data;
 using BolaoCopa.Application.Ranking.Data;
 using BolaoCopa.Application.Stats.Data;
 using BolaoCopa.Application.Teams.Data;
+using BolaoCopa.Infrastructure.Admin;
 using BolaoCopa.Infrastructure.Authentication;
 using BolaoCopa.Infrastructure.Bets;
 using BolaoCopa.Infrastructure.Matches;
 using BolaoCopa.Infrastructure.Persistence;
-using BolaoCopa.Infrastructure.Persistence.Seeding;
 using BolaoCopa.Infrastructure.Ranking;
 using BolaoCopa.Infrastructure.Stats;
 using BolaoCopa.Infrastructure.Teams;
@@ -27,7 +27,7 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not configured.");
 
         services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
-        services.AddScoped<DatabaseSeedRunner>();
+        services.AddScoped<AdminMaintenanceService>();
         services.AddScoped<IUserAuthRepository, EfUserAuthRepository>();
         services.AddScoped<IBetRepository, EfBetRepository>();
         services.AddScoped<IMatchReadRepository, EfMatchReadRepository>();

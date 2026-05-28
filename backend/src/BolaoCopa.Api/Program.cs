@@ -17,7 +17,6 @@ using BolaoCopa.Application.Teams;
 using BolaoCopa.Domain.Scoring;
 using BolaoCopa.Infrastructure;
 using BolaoCopa.Infrastructure.Persistence;
-using BolaoCopa.Infrastructure.Persistence.Seeding;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -126,15 +125,6 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-if (args.Contains("--seed", StringComparer.OrdinalIgnoreCase))
-{
-    using var scope = app.Services.CreateScope();
-    var seedRunner = scope.ServiceProvider.GetRequiredService<DatabaseSeedRunner>();
-
-    await seedRunner.SeedAsync();
-    return;
-}
-
 /*if (app.Environment.IsDevelopment())
 {*/
     app.UseSwagger();
@@ -158,6 +148,7 @@ routes.MapMatchesEndpoints();
 routes.MapRankingEndpoints();
 routes.MapStatsEndpoints();
 routes.MapTeamsEndpoints();
+routes.MapAdminMaintenanceEndpoints();
 
 app.Run();
 

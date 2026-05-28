@@ -1,0 +1,102 @@
+[
+  {
+    "name": "Athletico Paranaense",
+    "code": "CAP",
+    "flagUrl": ""
+  },
+  {
+    "name": "Atletico Mineiro",
+    "code": "CAM",
+    "flagUrl": ""
+  },
+  {
+    "name": "Bahia",
+    "code": "BAH",
+    "flagUrl": ""
+  },
+  {
+    "name": "Botafogo",
+    "code": "BOT",
+    "flagUrl": ""
+  },
+  {
+    "name": "Chapecoense",
+    "code": "CHA",
+    "flagUrl": ""
+  },
+  {
+    "name": "Corinthians",
+    "code": "COR",
+    "flagUrl": ""
+  },
+  {
+    "name": "Coritiba SAF",
+    "code": "CFC",
+    "flagUrl": ""
+  },
+  {
+    "name": "Cruzeiro",
+    "code": "CRU",
+    "flagUrl": ""
+  },
+  {
+    "name": "Flamengo",
+    "code": "FLA",
+    "flagUrl": ""
+  },
+  {
+    "name": "Fluminense",
+    "code": "FLU",
+    "flagUrl": ""
+  },
+  {
+    "name": "Gremio",
+    "code": "GRE",
+    "flagUrl": ""
+  },
+  {
+    "name": "Internacional",
+    "code": "INT",
+    "flagUrl": ""
+  },
+  {
+    "name": "Mirassol",
+    "code": "MIR",
+    "flagUrl": ""
+  },
+  {
+    "name": "Palmeiras",
+    "code": "PAL",
+    "flagUrl": ""
+  },
+  {
+    "name": "Red Bull Bragantino",
+    "code": "RBB",
+    "flagUrl": ""
+  },
+  {
+    "name": "Remo",
+    "code": "REM",
+    "flagUrl": ""
+  },
+  {
+    "name": "Santos FC",
+    "code": "SAN",
+    "flagUrl": ""
+  },
+  {
+    "name": "Sao Paulo",
+    "code": "SAO",
+    "flagUrl": ""
+  },
+  {
+    "name": "Vasco da Gama SAF",
+    "code": "VAS",
+    "flagUrl": ""
+  },
+  {
+    "name": "Vitoria",
+    "code": "VIT",
+    "flagUrl": ""
+  }
+]

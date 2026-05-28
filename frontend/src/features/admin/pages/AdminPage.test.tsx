@@ -9,9 +9,12 @@ import { AdminPage } from './AdminPage'
 import type { MatchListItem } from '../../../types/matches'
 import type { Team } from '../../../types/teams'
 import {
+  useClearApplicationDataMutation,
   useAdminMatches,
   useAdminTeams,
   useCreateMatchMutation,
+  useImportBrasileiraoTeamsMutation,
+  useImportWorldCupTeamsMutation,
   useUpdateMatchResultMutation,
 } from '../hooks/useAdminMatches'
 
@@ -24,12 +27,18 @@ vi.mock('../hooks/useAdminMatches', async () => {
     useAdminMatches: vi.fn(),
     useCreateMatchMutation: vi.fn(),
     useUpdateMatchResultMutation: vi.fn(),
+    useImportBrasileiraoTeamsMutation: vi.fn(),
+    useImportWorldCupTeamsMutation: vi.fn(),
+    useClearApplicationDataMutation: vi.fn(),
   }
 })
 
+const mockedUseClearApplicationDataMutation = vi.mocked(useClearApplicationDataMutation)
 const mockedUseAdminTeams = vi.mocked(useAdminTeams)
 const mockedUseAdminMatches = vi.mocked(useAdminMatches)
 const mockedUseCreateMatchMutation = vi.mocked(useCreateMatchMutation)
+const mockedUseImportBrasileiraoTeamsMutation = vi.mocked(useImportBrasileiraoTeamsMutation)
+const mockedUseImportWorldCupTeamsMutation = vi.mocked(useImportWorldCupTeamsMutation)
 const mockedUseUpdateMatchResultMutation = vi.mocked(useUpdateMatchResultMutation)
 
 const teams: Team[] = [
@@ -65,7 +74,10 @@ function renderWithProviders(children: ReactNode) {
 }
 
 describe('AdminPage', () => {
+  const clearApplicationData = vi.fn()
   const createMatch = vi.fn()
+  const importBrasileiraoTeams = vi.fn()
+  const importWorldCupTeams = vi.fn()
   const updateResult = vi.fn()
 
   afterEach(() => {
@@ -73,7 +85,10 @@ describe('AdminPage', () => {
   })
 
   beforeEach(() => {
+    clearApplicationData.mockReset()
     createMatch.mockReset()
+    importBrasileiraoTeams.mockReset()
+    importWorldCupTeams.mockReset()
     updateResult.mockReset()
 
     mockedUseAdminTeams.mockReturnValue({
@@ -95,15 +110,98 @@ describe('AdminPage', () => {
       isPending: false,
       mutateAsync: updateResult,
     } as unknown as ReturnType<typeof useUpdateMatchResultMutation>)
+    mockedUseImportBrasileiraoTeamsMutation.mockReturnValue({
+      isPending: false,
+      mutateAsync: importBrasileiraoTeams,
+    } as unknown as ReturnType<typeof useImportBrasileiraoTeamsMutation>)
+    mockedUseImportWorldCupTeamsMutation.mockReturnValue({
+      isPending: false,
+      mutateAsync: importWorldCupTeams,
+    } as unknown as ReturnType<typeof useImportWorldCupTeamsMutation>)
+    mockedUseClearApplicationDataMutation.mockReturnValue({
+      isPending: false,
+      mutateAsync: clearApplicationData,
+    } as unknown as ReturnType<typeof useClearApplicationDataMutation>)
   })
 
   it('renders admin create and result forms', () => {
     renderWithProviders(<AdminPage />)
 
     expect(screen.getByRole('heading', { name: 'Painel administrativo' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Manutencao de dados' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Inserir Brasileirao Serie A 2026' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Inserir Copa 2026' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Limpar dados' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Cadastrar partida' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Atualizar resultado' })).toBeInTheDocument()
     expect(screen.getByText('Brazil x Argentina')).toBeInTheDocument()
+  })
+
+  it('imports brasileirao teams from admin maintenance', async () => {
+    importBrasileiraoTeams.mockResolvedValue({
+      action: 'brasileirao-serie-a-2026',
+      insertedTeams: 20,
+      updatedTeams: 0,
+      deletedBets: 0,
+      deletedMatches: 0,
+      deletedTeams: 0,
+    })
+
+    renderWithProviders(<AdminPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Inserir Brasileirao Serie A 2026' }))
+
+    await waitFor(() => expect(importBrasileiraoTeams).toHaveBeenCalledTimes(1))
+    expect(screen.getByText('Times processados: 20 inseridos e 0 atualizados.')).toBeInTheDocument()
+  })
+
+  it('imports world cup teams from admin maintenance', async () => {
+    importWorldCupTeams.mockResolvedValue({
+      action: 'world-cup-2026',
+      insertedTeams: 48,
+      updatedTeams: 0,
+      deletedBets: 0,
+      deletedMatches: 0,
+      deletedTeams: 0,
+    })
+
+    renderWithProviders(<AdminPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Inserir Copa 2026' }))
+
+    await waitFor(() => expect(importWorldCupTeams).toHaveBeenCalledTimes(1))
+    expect(screen.getByText('Times processados: 48 inseridos e 0 atualizados.')).toBeInTheDocument()
+  })
+
+  it('does not clear application data when confirmation is cancelled', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    renderWithProviders(<AdminPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar dados' }))
+
+    expect(clearApplicationData).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+
+  it('clears application data after confirmation', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    clearApplicationData.mockResolvedValue({
+      action: 'application-data-reset',
+      insertedTeams: 0,
+      updatedTeams: 0,
+      deletedBets: 1,
+      deletedMatches: 2,
+      deletedTeams: 3,
+    })
+
+    renderWithProviders(<AdminPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar dados' }))
+
+    await waitFor(() => expect(clearApplicationData).toHaveBeenCalledTimes(1))
+    expect(screen.getByText('Dados limpos: 1 palpites, 2 partidas e 3 times removidos.')).toBeInTheDocument()
+    confirmSpy.mockRestore()
   })
 
   it('validates same team before creating match', () => {

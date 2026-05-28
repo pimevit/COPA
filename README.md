@@ -1,9 +1,9 @@
 # Bolao Copa
 
 Monorepo do bolao da Copa. O estado atual cobre a base tecnica, o modelo de
-dominio/EF Core, a Tarefa 03 (migration inicial e seed idempotente de times e
-partidas), a Tarefa 04 (autenticacao basica com registro, login, JWT e hashing
-de senha), a Tarefa 05 (Swagger, Bearer no Swagger, FluentValidation,
+dominio/EF Core, migrations e manutencao administrativa de dados, a Tarefa 04
+(autenticacao basica com registro, login, JWT e hashing de senha), a Tarefa 05
+(Swagger, Bearer no Swagger, FluentValidation,
 ProblemDetails e logging HTTP basico), a Tarefa 06 (endpoints publicos de
 leitura de partidas), a Tarefa 07 (servico puro de pontuacao no dominio com
 testes unitarios), a Tarefa 08 (endpoints autenticados de palpites), a
@@ -154,8 +154,8 @@ $adminLogin = Invoke-RestMethod `
 $adminHeaders = @{ Authorization = "Bearer $($adminLogin.accessToken)" }
 ```
 
-Fora do escopo atual: recuperacao de senha, painel admin, gestao completa de
-roles e verificacao de e-mail.
+Fora do escopo atual: recuperacao de senha, gestao completa de roles e
+verificacao de e-mail.
 
 ### Partidas
 
@@ -316,8 +316,33 @@ Regras implementadas:
 - Relancar exatamente o mesmo resultado e idempotente.
 - Resultado e recalc sao executados na mesma transacao.
 
-Fora da Tarefa 09: estatisticas, painel admin, frontend e integracao com API
-esportiva.
+Fora da Tarefa 09: estatisticas e integracao com API esportiva.
+
+### Manutencao administrativa de dados
+
+A API possui endpoints protegidos por role `Admin` para cargas controladas de
+times e limpeza dos dados de jogo:
+
+- `POST /admin/maintenance/teams/brasileirao-serie-a-2026`: insere/atualiza os
+  20 clubes do Campeonato Brasileiro Serie A 2026.
+- `POST /admin/maintenance/teams/world-cup-2026`: insere/atualiza as 48
+  selecoes classificadas para a Copa 2026.
+- `DELETE /admin/maintenance/application-data`: remove `Bets`, `Matches` e
+  `Teams`, preservando `Users` e o historico de migrations.
+
+As importacoes sao idempotentes por `Team.Code`: codigo ausente e inserido;
+codigo existente atualiza `Name` e `FlagUrl`. A resposta retorna contadores:
+`action`, `insertedTeams`, `updatedTeams`, `deletedBets`, `deletedMatches` e
+`deletedTeams`.
+
+Exemplo:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -Uri http://localhost:5000/admin/maintenance/teams/world-cup-2026 `
+  -Headers $adminHeaders
+```
 
 ### Ranking
 
@@ -497,7 +522,7 @@ As requisicoes HTTP sao registradas com metodo, caminho, status code, duracao e
 trace id. Os logs nao registram body, header `Authorization`, senha, token JWT
 ou `PasswordHash`.
 
-### Banco, migration e seed
+### Banco, migration e dados admin
 
 Pre-requisito: SQL Server LocalDB acessivel pela connection string
 `ConnectionStrings:DefaultConnection`. O valor local padrao fica em
@@ -510,36 +535,33 @@ Pre-requisito: SQL Server LocalDB acessivel pela connection string
 Esse valor pode ser sobrescrito por user secrets, variavel de ambiente ou pelo
 parametro do script abaixo.
 
-Aplicar a migration inicial e executar o seed local:
+Ao iniciar, a API tenta aplicar as migrations automaticamente quando o provider
+configurado e relacional, como SQL Server ou Azure SQL. Mantenha a connection
+string privada no App Service como `ConnectionStrings__DefaultConnection` ou
+como connection string chamada `DefaultConnection`. Se a migration falhar, a API
+nao inicia.
+
+Aplicar a migration inicial local:
 
 ```powershell
-.\scripts\apply-migration-and-seed.ps1
+.\scripts\apply-migration.ps1
 ```
 
 Com connection string temporaria, sem gravar credencial no repositorio:
 
 ```powershell
-.\scripts\apply-migration-and-seed.ps1 -ConnectionString "Server=(localdb)\mssqllocaldb;Database=BolaoCopaDb;Trusted_Connection=True;"
+.\scripts\apply-migration.ps1 -ConnectionString "Server=(localdb)\mssqllocaldb;Database=BolaoCopaDb;Trusted_Connection=True;"
 ```
 
 Comandos separados:
 
 ```powershell
 dotnet ef database update --project .\backend\src\BolaoCopa.Infrastructure\BolaoCopa.Infrastructure.csproj --startup-project .\backend\src\BolaoCopa.Api\BolaoCopa.Api.csproj
-dotnet run --project .\backend\src\BolaoCopa.Api\BolaoCopa.Api.csproj -- --seed
 ```
 
-O seed le arquivos fixos em
-`backend/src/BolaoCopa.Infrastructure/Persistence/SeedData`. Ele e idempotente:
-`Team` e localizado por `Code`, e `Match` por `HomeTeamCode`, `AwayTeamCode`,
-`MatchDate` e `Stage`. O calendario e uma base fixa revisavel enquanto a fonte
-oficial permanece pendente.
-
-`MatchDate` e gravado em UTC. `AllowBetUntil` tambem e gravado em UTC e segue a
-regra do seed:
-
-- `Groups`: `MatchDate - 15min`
-- demais fases: `MatchDate - 30min`
+Nao existe mais execucao local por `--seed`. As cargas fixas ficam em
+`backend/src/BolaoCopa.Infrastructure/Persistence/AdminData` e sao aplicadas
+pelos endpoints administrativos ou pelos botoes do painel `/admin`.
 
 ## Frontend
 
@@ -588,6 +610,8 @@ Rotas atuais:
   `/login`.
 - `/matches`: rota protegida alternativa para a mesma tela de partidas.
 - `/ranking`: rota protegida com a tela de ranking.
+- `/admin`: rota protegida para usuarios com role `Admin`, com cadastro de
+  partidas, resultado e manutencao de dados.
 
 Estrutura principal:
 
@@ -639,6 +663,10 @@ Estrutura principal:
 - `src/features/ranking/pages/RankingPage.tsx`: tela responsiva de ranking.
 - `src/features/ranking/components`: Top 3, lista, linha e estados de feedback.
 - `src/features/ranking/utils`: formatacao de pontos e posicao.
+- `src/features/admin/pages/AdminPage.tsx`: painel admin com cadastro de
+  partidas, resultados e botoes de manutencao.
+- `src/features/admin/api/adminMaintenanceApi.ts`: chamadas para os endpoints
+  administrativos de carga e limpeza de dados.
 - `src/types/matches.ts`: contrato TypeScript usado pela tela.
 - `src/types/bets.ts`: contratos TypeScript dos palpites.
 - `src/types/ranking.ts`: contrato TypeScript usado pela tela de ranking.
