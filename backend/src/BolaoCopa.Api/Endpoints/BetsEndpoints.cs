@@ -68,6 +68,62 @@ public static class BetsEndpoints
             return Results.Ok(bets);
         });
 
+        // GET /bets/visibility - retorna se o usuário permite exibir seus palpites publicamente.
+        group.MapGet("/visibility", [Authorize] async (
+            BetsService betsService,
+            HttpContext httpContext,
+            CancellationToken cancellationToken) =>
+        {
+            if (!tryGetUserId(httpContext, out var userId, out var error))
+            {
+                return error;
+            }
+
+            var result = await betsService.GetVisibilityAsync(userId, cancellationToken);
+
+            return result.Succeeded
+                ? Results.Ok(result.Value)
+                : mapFailure(httpContext, result.ErrorCode, result.ErrorMessage);
+        });
+
+        // PUT /bets/visibility - atualiza se os palpites do usuário podem aparecer para outros jogadores.
+        group.MapPut("/visibility", [Authorize] async (
+            UpdateBetVisibilityRequest request,
+            BetsService betsService,
+            HttpContext httpContext,
+            CancellationToken cancellationToken) =>
+        {
+            if (!tryGetUserId(httpContext, out var userId, out var error))
+            {
+                return error;
+            }
+
+            var result = await betsService.UpdateVisibilityAsync(userId, request, cancellationToken);
+
+            return result.Succeeded
+                ? Results.Ok(result.Value)
+                : mapFailure(httpContext, result.ErrorCode, result.ErrorMessage);
+        });
+
+        // GET /bets/public - lista palpites de jogadores que escolheram exibição pública.
+        group.MapGet("/public", [Authorize] async (
+            int? matchId,
+            BetsService betsService,
+            HttpContext httpContext,
+            CancellationToken cancellationToken) =>
+        {
+            if (!tryGetUserId(httpContext, out var userId, out var error))
+            {
+                return error;
+            }
+
+            var result = await betsService.ListPublicAsync(userId, matchId, cancellationToken);
+
+            return result.Succeeded
+                ? Results.Ok(result.Value)
+                : mapFailure(httpContext, result.ErrorCode, result.ErrorMessage);
+        });
+
         return app;
     }
 
@@ -121,6 +177,16 @@ public static class BetsEndpoints
                 httpContext,
                 StatusCodes.Status409Conflict,
                 "Bet already exists.",
+                detail),
+            BetErrorCode.UserNotFound => ApiProblemDetailsFactory.CreateProblem(
+                httpContext,
+                StatusCodes.Status404NotFound,
+                "User not found.",
+                detail),
+            BetErrorCode.PublicBetsNotAllowed => ApiProblemDetailsFactory.CreateProblem(
+                httpContext,
+                StatusCodes.Status403Forbidden,
+                "Public bets are not available.",
                 detail),
             _ => ApiProblemDetailsFactory.CreateProblem(
                 httpContext,

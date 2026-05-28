@@ -24,7 +24,7 @@ Stack-alvo: backend **ASP.NET Core Web API + EF Core + JWT**, frontend **React +
 - **Pontuação**: cálculo automático conforme regra de placar (ver 2.3).
 - **Multiplicador por fase**: aplicado sobre a pontuação base.
 - **Ranking global**: ordenação por pontos, com Top 3 e usuário logado em destaque, atualização automática.
-- **Visibilidade de palpites**: ocultos antes do início da partida, públicos depois.
+- **Visibilidade de palpites**: jogadores ficam ocultos por padrão; quem torna seus palpites públicos pode ver imediatamente palpites de outros jogadores públicos.
 - **Estatísticas do usuário**: total de pontos, nº de placares exatos, nº de acertos de vencedor, percentual de acertos, melhor sequência de acertos, histórico de palpites.
 - **Desempate de ranking**: critérios em cascata (ver 2.3).
 
@@ -99,9 +99,7 @@ Itens abaixo são bloqueantes ou de alto risco de retrabalho. Pergunta formulada
 **Pergunta:** `AllowBetUntil` é persistido no seed/cadastro da partida ou calculado em runtime a partir de `MatchDate` e `Stage`?
 
 ### 3.6 — Como "partida iniciada" é determinada (visibilidade)
-**Problema:** A visibilidade pública depende de a partida ter "iniciado", mas não há regra clara — pode ser `Status` ou `MatchDate <= agora`.
-**Categoria:** Estado/contexto ausente.
-**Pergunta:** Palpites tornam-se públicos com base na mudança de `Status` para "em andamento" ou simplesmente quando `MatchDate` é atingido?
+**Decisão atual:** A visibilidade de palpites de terceiros não depende mais do início da partida. Ela é imediata, mas apenas entre jogadores com a preferência global pública. Jogadores ocultos não aparecem e também não veem palpites públicos.
 
 ### 3.7 — Valores dos enums `Stage` e `Status`
 **Problema:** Fases e status são referenciados mas não enumerados; o multiplicador depende da fase, e o fluxo depende do status.
@@ -523,17 +521,17 @@ O resultado são 18 tarefas em 4 blocos: Fundação (T01–T03), Backend (T04–
 **Escopo:**
 - Formulário de palpite por partida, habilitado apenas com `isBettingOpen`.
 - Criar/editar via `POST /bets` / `PUT /bets/{id}` e listar histórico via `GET /bets/me`.
-- Aplicar regra de visibilidade no frontend: palpites de outros ocultos antes do início, visíveis depois (ver dúvida 3.6).
+- Aplicar regra de visibilidade recíproca: oculto por padrão; quem está oculto não aparece e também não vê terceiros; quem está público vê imediatamente palpites de jogadores públicos.
 
 **Fora do escopo:** Cálculo de pontos (já no backend), ranking.
 
 **Critérios de aceite:**
 - Palpite só pode ser enviado/editado dentro da janela; UI bloqueia e a API confirma.
 - Histórico do usuário exibido corretamente.
-- Palpites de terceiros respeitam a regra de visibilidade.
+- Palpites de terceiros respeitam a regra de privacidade recíproca.
 
 **Prompt sugerido para IA:**
-> Implemente o fluxo de palpites: um formulário por partida (gols casa/fora) habilitado só quando `isBettingOpen`, integrando `POST /bets` e `PUT /bets/{id}`. Exiba o histórico do usuário via `GET /bets/me`. Trate erros de janela fechada vindos da API. Aplique a regra de visibilidade: palpites de outros usuários só aparecem após o início da partida. Use TanStack Query com invalidação de cache após salvar.
+> Implemente o fluxo de palpites: um formulário por partida (gols casa/fora) habilitado só quando `isBettingOpen`, integrando `POST /bets` e `PUT /bets/{id}`. Exiba o histórico do usuário via `GET /bets/me`. Trate erros de janela fechada vindos da API. Aplique a regra de visibilidade recíproca: oculto por padrão; quem está oculto não aparece e não vê terceiros; quem está público vê imediatamente palpites de jogadores públicos. Use TanStack Query com invalidação de cache após salvar.
 
 ---
 

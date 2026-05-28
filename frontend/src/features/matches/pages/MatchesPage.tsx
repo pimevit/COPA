@@ -1,13 +1,41 @@
+import { useQueryClient } from '@tanstack/react-query'
+
 import { MatchCard } from '../components/MatchCard'
 import { BetHistory } from '../../bets/components/BetHistory'
-import { useMyBets } from '../../bets/hooks/useBets'
+import { BetVisibilityControl } from '../../bets/components/BetVisibilityControl'
+import type { PublicBet } from '../../../types/bets'
+import {
+  betVisibilityQueryKey,
+  publicBetsQueryKey,
+  useBetVisibility,
+  useMyBets,
+  usePublicBets,
+  useUpdateBetVisibilityMutation,
+} from '../../bets/hooks/useBets'
 import { indexBetsByMatchId } from '../../bets/utils/betHistory'
 import { AuthenticatedNav } from '../../../routes/AuthenticatedNav'
 import { useMatches } from '../hooks/useMatches'
 import { isTodayMatch, parseUtcDate } from '../utils/dateTime'
 
+function groupPublicBetsByMatchId(bets: readonly PublicBet[]) {
+  const index = new Map<number, PublicBet[]>()
+
+  for (const bet of bets) {
+    const existing = index.get(bet.matchId) ?? []
+    existing.push(bet)
+    index.set(bet.matchId, existing)
+  }
+
+  return index
+}
+
 export function MatchesPage() {
+  const queryClient = useQueryClient()
   const { data, error, isError, isPending, refetch } = useMatches()
+  const betVisibilityQuery = useBetVisibility()
+  const updateBetVisibilityMutation = useUpdateBetVisibilityMutation()
+  const showBetsPublicly = betVisibilityQuery.data?.showBetsPublicly === true
+  const publicBetsQuery = usePublicBets(showBetsPublicly)
   const {
     data: myBetsData,
     error: myBetsError,
@@ -22,7 +50,27 @@ export function MatchesPage() {
     (first, second) => parseUtcDate(first.match.matchDate).getTime() - parseUtcDate(second.match.matchDate).getTime(),
   )
   const betsByMatchId = indexBetsByMatchId(myBetsData ?? [])
+  const publicBetsByMatchId = groupPublicBetsByMatchId(showBetsPublicly ? (publicBetsQuery.data ?? []) : [])
   const hasTodayMatches = matches.some((match) => isTodayMatch(match.matchDate))
+  const visibilityError = updateBetVisibilityMutation.error ?? (betVisibilityQuery.isError ? betVisibilityQuery.error : null)
+
+  async function handleVisibilityChange(showBetsPubliclyNext: boolean) {
+    try {
+      const response = await updateBetVisibilityMutation.mutateAsync({
+        showBetsPublicly: showBetsPubliclyNext,
+      })
+
+      queryClient.setQueryData(betVisibilityQueryKey, response)
+
+      if (response.showBetsPublicly) {
+        await queryClient.invalidateQueries({ queryKey: publicBetsQueryKey() })
+      } else {
+        queryClient.removeQueries({ queryKey: publicBetsQueryKey() })
+      }
+    } catch {
+      // The mutation exposes the error state rendered by BetVisibilityControl.
+    }
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-950 dark:bg-slate-950 dark:text-slate-50 sm:px-6 lg:px-8">
@@ -44,6 +92,14 @@ export function MatchesPage() {
             </span>
           </div>
         </header>
+
+        <BetVisibilityControl
+          error={visibilityError}
+          isLoading={betVisibilityQuery.isPending}
+          isSaving={updateBetVisibilityMutation.isPending}
+          onChange={(nextValue) => void handleVisibilityChange(nextValue)}
+          showBetsPublicly={showBetsPublicly}
+        />
 
         {isPending ? (
           <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
@@ -80,6 +136,11 @@ export function MatchesPage() {
                   isBetHistoryLoading={isMyBetsPending}
                   isToday={isTodayMatch(match.matchDate)}
                   match={match}
+                  publicBets={publicBetsByMatchId.get(match.id) ?? []}
+                  publicBetsError={publicBetsQuery.error}
+                  publicBetsIsBlocked={!showBetsPublicly}
+                  publicBetsIsError={showBetsPublicly && publicBetsQuery.isError}
+                  publicBetsIsLoading={showBetsPublicly && publicBetsQuery.isPending}
                 />
               </li>
             ))}

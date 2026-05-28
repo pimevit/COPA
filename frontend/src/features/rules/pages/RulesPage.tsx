@@ -50,7 +50,7 @@ export function RulesPage() {
           <article className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
             <h2 className="text-lg font-semibold tracking-normal">Visibilidade</h2>
             <p className="mt-3 text-sm leading-6 text-slate-700 dark:text-slate-300">
-              Palpites ficam ocultos antes do inicio da partida e podem ser exibidos apos o inicio.
+              Jogadores ficam ocultos por padrao. Quem deixa os palpites publicos pode ver palpites de outros jogadores publicos.
             </p>
           </article>
 

@@ -1,9 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import type { MyBet } from '../../../types/bets'
 import { buildBetSaveOperation, findBetByMatchId, indexBetsByMatchId } from './betHistory'
 import { validateBetForm } from './betValidation'
-import { canShowExternalBets, hasMatchStarted } from './visibility'
 
 const baseBet: MyBet = {
   id: 10,
@@ -82,22 +81,4 @@ describe('bet helpers', () => {
     })
   })
 
-  it('decides match start from status before date fallback', () => {
-    const now = new Date('2026-06-11T20:00:00Z')
-
-    expect(hasMatchStarted({ matchDate: '2026-06-11T19:00:00Z', status: 'Scheduled' }, now)).toBe(false)
-    expect(hasMatchStarted({ matchDate: '2026-06-12T19:00:00Z', status: 'InProgress' }, now)).toBe(true)
-    expect(hasMatchStarted({ matchDate: '2026-06-12T19:00:00Z', status: 'Finished' }, now)).toBe(true)
-    expect(hasMatchStarted({ matchDate: '2026-06-11T19:00:00Z', status: 'Delayed' }, now)).toBe(true)
-  })
-
-  it('uses match start to decide external bet visibility', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-06-11T18:00:00Z'))
-
-    expect(canShowExternalBets({ matchDate: '2026-06-11T19:00:00Z', status: 'Scheduled' })).toBe(false)
-    expect(canShowExternalBets({ matchDate: '2026-06-11T19:00:00Z', status: 'InProgress' })).toBe(true)
-
-    vi.useRealTimers()
-  })
 })

@@ -17,6 +17,14 @@ public sealed class EfBetRepository(AppDbContext dbContext) : IBetRepository
             .SingleOrDefaultAsync(match => match.Id == matchId, cancellationToken);
     }
 
+    public Task<User?> FindUserByIdAsync(
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.Users
+            .SingleOrDefaultAsync(user => user.Id == userId, cancellationToken);
+    }
+
     public Task<Bet?> FindByUserAndMatchAsync(
         int userId,
         int matchId,
@@ -43,6 +51,15 @@ public sealed class EfBetRepository(AppDbContext dbContext) : IBetRepository
                 cancellationToken);
     }
 
+    public Task<bool> MatchExistsAsync(
+        int matchId,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.Matches
+            .AsNoTracking()
+            .AnyAsync(match => match.Id == matchId, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Bet>> ListByUserAsync(
         int userId,
         CancellationToken cancellationToken = default)
@@ -56,6 +73,27 @@ public sealed class EfBetRepository(AppDbContext dbContext) : IBetRepository
             .Where(bet => bet.UserId == userId)
             .OrderByDescending(bet => bet.Match!.MatchDate)
             .ThenByDescending(bet => bet.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Bet>> ListPublicAsync(
+        int? matchId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Bets
+            .AsNoTracking()
+            .Include(bet => bet.User)
+            .Where(bet => bet.User != null && bet.User.ShowBetsPublicly);
+
+        if (matchId.HasValue)
+        {
+            query = query.Where(bet => bet.MatchId == matchId.Value);
+        }
+
+        return await query
+            .OrderBy(bet => bet.MatchId)
+            .ThenBy(bet => bet.User!.Name)
+            .ThenBy(bet => bet.UserId)
             .ToListAsync(cancellationToken);
     }
 

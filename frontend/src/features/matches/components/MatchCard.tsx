@@ -1,7 +1,8 @@
 import { BettingWindowBadge } from './BettingWindowBadge'
 import { MatchTeams } from './MatchTeams'
 import { BetPanel } from '../../bets/components/BetPanel'
-import type { MyBet } from '../../../types/bets'
+import { PublicBetsList } from '../../bets/components/PublicBetsList'
+import type { MyBet, PublicBet } from '../../../types/bets'
 import type { MatchListItem } from '../../../types/matches'
 import { formatMatchDateTime } from '../utils/dateTime'
 import { getStageLabel, getStatusLabel } from '../utils/labels'
@@ -12,9 +13,24 @@ type MatchCardProps = {
   isToday: boolean
   existingBet?: MyBet
   isBetHistoryLoading?: boolean
+  publicBets?: readonly PublicBet[]
+  publicBetsError?: unknown
+  publicBetsIsBlocked: boolean
+  publicBetsIsError?: boolean
+  publicBetsIsLoading?: boolean
 }
 
-export function MatchCard({ existingBet, isBetHistoryLoading = false, match, isToday }: MatchCardProps) {
+export function MatchCard({
+  existingBet,
+  isBetHistoryLoading = false,
+  isToday,
+  match,
+  publicBets = [],
+  publicBetsError,
+  publicBetsIsBlocked,
+  publicBetsIsError = false,
+  publicBetsIsLoading = false,
+}: MatchCardProps) {
   const cardClasses = isToday
     ? 'border-emerald-300 bg-white shadow-sm shadow-emerald-100 dark:border-emerald-700 dark:bg-slate-950 dark:shadow-none'
     : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950'
@@ -57,6 +73,14 @@ export function MatchCard({ existingBet, isBetHistoryLoading = false, match, isT
         </div>
 
         <BetPanel existingBet={existingBet} isHistoryLoading={isBetHistoryLoading} match={match} />
+
+        <PublicBetsList
+          bets={publicBets}
+          error={publicBetsError}
+          isBlocked={publicBetsIsBlocked}
+          isError={publicBetsIsError}
+          isLoading={publicBetsIsLoading}
+        />
       </div>
     </article>
   )

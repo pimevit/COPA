@@ -49,6 +49,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             .HasMaxLength(512)
             .IsRequired();
 
+        entity.Property(user => user.ShowBetsPublicly)
+            .HasDefaultValue(false)
+            .IsRequired();
+
         configureUtcDate(entity.Property(user => user.CreatedAt));
     }
 

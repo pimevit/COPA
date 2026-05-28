@@ -34,6 +34,25 @@ export type BetResponse = {
 
 export type MyBet = BetResponse
 
+export type BetVisibilityResponse = {
+  showBetsPublicly: boolean
+}
+
+export type UpdateBetVisibilityRequest = {
+  showBetsPublicly: boolean
+}
+
+export type PublicBet = {
+  matchId: number
+  userId: number
+  userName: string
+  homeGoalsPrediction: number
+  awayGoalsPrediction: number
+  pointsEarned: number
+  createdAt: string
+  isCurrentUser: boolean
+}
+
 export type UpdateBetCommand = {
   id: number
   request: UpdateBetRequest

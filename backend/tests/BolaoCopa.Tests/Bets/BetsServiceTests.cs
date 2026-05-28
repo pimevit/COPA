@@ -127,6 +127,76 @@ public sealed class BetsServiceTests
     }
 
     [Fact]
+    public async Task GetVisibilityAsync_WhenUserIsNew_ReturnsHiddenByDefault()
+    {
+        var repository = new FakeBetRepository();
+        repository.AddUser(createUser(10, showBetsPublicly: false));
+        var service = createService(repository);
+
+        var result = await service.GetVisibilityAsync(10);
+
+        Assert.True(result.Succeeded);
+        Assert.False(result.Value!.ShowBetsPublicly);
+    }
+
+    [Fact]
+    public async Task UpdateVisibilityAsync_SavesPublicPreference()
+    {
+        var repository = new FakeBetRepository();
+        var user = createUser(10, showBetsPublicly: false);
+        repository.AddUser(user);
+        var service = createService(repository);
+
+        var result = await service.UpdateVisibilityAsync(10, new UpdateBetVisibilityRequest(true));
+
+        Assert.True(result.Succeeded);
+        Assert.True(result.Value!.ShowBetsPublicly);
+        Assert.True(user.ShowBetsPublicly);
+    }
+
+    [Fact]
+    public async Task ListPublicAsync_WhenRequesterIsHidden_ReturnsForbidden()
+    {
+        var repository = new FakeBetRepository();
+        repository.AddUser(createUser(10, showBetsPublicly: false));
+        var service = createService(repository);
+
+        var result = await service.ListPublicAsync(10);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(BetErrorCode.PublicBetsNotAllowed, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task ListPublicAsync_ReturnsOnlyPublicUsersAndFiltersByMatch()
+    {
+        var repository = new FakeBetRepository();
+        var requester = createUser(10, showBetsPublicly: true, name: "Requester");
+        var hiddenUser = createUser(20, showBetsPublicly: false, name: "Hidden");
+        var publicUser = createUser(30, showBetsPublicly: true, name: "Public");
+        var firstMatch = createMatch(1, FixedNowUtc.AddMinutes(1));
+        var secondMatch = createMatch(2, FixedNowUtc.AddMinutes(1));
+        repository.AddUser(requester);
+        repository.AddUser(hiddenUser);
+        repository.AddUser(publicUser);
+        repository.AddMatch(firstMatch);
+        repository.AddMatch(secondMatch);
+        repository.AddBet(createBet(1, requester.Id, firstMatch.Id, firstMatch, requester));
+        repository.AddBet(createBet(2, hiddenUser.Id, firstMatch.Id, firstMatch, hiddenUser));
+        repository.AddBet(createBet(3, publicUser.Id, firstMatch.Id, firstMatch, publicUser));
+        repository.AddBet(createBet(4, publicUser.Id, secondMatch.Id, secondMatch, publicUser));
+        var service = createService(repository);
+
+        var result = await service.ListPublicAsync(requester.Id, firstMatch.Id);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal([requester.Id, publicUser.Id], result.Value!.Select(bet => bet.UserId).OrderBy(id => id).ToArray());
+        Assert.All(result.Value!, bet => Assert.Equal(firstMatch.Id, bet.MatchId));
+        Assert.Contains(result.Value!, bet => bet.UserId == requester.Id && bet.IsCurrentUser);
+        Assert.DoesNotContain(result.Value!, bet => bet.UserId == hiddenUser.Id);
+    }
+
+    [Fact]
     public void CreateBetRequestValidator_WhenGoalsAreNegative_ReturnsErrors()
     {
         var validator = new CreateBetRequestValidator();
@@ -166,7 +236,28 @@ public sealed class BetsServiceTests
         };
     }
 
-    private static Bet createBet(int id, int userId, int matchId, Match? match = null)
+    private static User createUser(
+        int id,
+        bool showBetsPublicly,
+        string? name = null)
+    {
+        return new User
+        {
+            Id = id,
+            Name = name ?? $"User {id}",
+            Email = $"user{id}@example.com",
+            PasswordHash = "hash",
+            ShowBetsPublicly = showBetsPublicly,
+            CreatedAt = FixedNowUtc
+        };
+    }
+
+    private static Bet createBet(
+        int id,
+        int userId,
+        int matchId,
+        Match? match = null,
+        User? user = null)
     {
         return new Bet
         {
@@ -174,6 +265,7 @@ public sealed class BetsServiceTests
             UserId = userId,
             MatchId = matchId,
             Match = match,
+            User = user,
             HomeGoalsPrediction = 1,
             AwayGoalsPrediction = 0,
             PointsEarned = 0,
@@ -184,8 +276,14 @@ public sealed class BetsServiceTests
     private sealed class FakeBetRepository : IBetRepository
     {
         private readonly List<Match> matches = [];
+        private readonly List<User> users = [];
 
         public List<Bet> Bets { get; } = [];
+
+        public void AddUser(User user)
+        {
+            users.Add(user);
+        }
 
         public void AddMatch(Match match)
         {
@@ -195,6 +293,7 @@ public sealed class BetsServiceTests
         public void AddBet(Bet bet)
         {
             bet.Match ??= matches.Single(match => match.Id == bet.MatchId);
+            bet.User ??= users.SingleOrDefault(user => user.Id == bet.UserId);
             Bets.Add(bet);
         }
 
@@ -203,6 +302,13 @@ public sealed class BetsServiceTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(matches.SingleOrDefault(match => match.Id == matchId));
+        }
+
+        public Task<User?> FindUserByIdAsync(
+            int userId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(users.SingleOrDefault(user => user.Id == userId));
         }
 
         public Task<Bet?> FindByUserAndMatchAsync(
@@ -221,6 +327,13 @@ public sealed class BetsServiceTests
             return Task.FromResult(Bets.SingleOrDefault(bet => bet.Id == betId && bet.UserId == userId));
         }
 
+        public Task<bool> MatchExistsAsync(
+            int matchId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(matches.Any(match => match.Id == matchId));
+        }
+
         public Task<IReadOnlyList<Bet>> ListByUserAsync(
             int userId,
             CancellationToken cancellationToken = default)
@@ -229,6 +342,21 @@ public sealed class BetsServiceTests
                 .Where(bet => bet.UserId == userId)
                 .OrderByDescending(bet => bet.Match!.MatchDate)
                 .ThenByDescending(bet => bet.CreatedAt)
+                .ToList();
+
+            return Task.FromResult(result);
+        }
+
+        public Task<IReadOnlyList<Bet>> ListPublicAsync(
+            int? matchId = null,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<Bet> result = Bets
+                .Where(bet => bet.User?.ShowBetsPublicly == true)
+                .Where(bet => !matchId.HasValue || bet.MatchId == matchId.Value)
+                .OrderBy(bet => bet.MatchId)
+                .ThenBy(bet => bet.User!.Name)
+                .ThenBy(bet => bet.UserId)
                 .ToList();
 
             return Task.FromResult(result);

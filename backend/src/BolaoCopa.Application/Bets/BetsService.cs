@@ -96,6 +96,76 @@ public sealed class BetsService(
             .ToList();
     }
 
+    public async Task<BetResult<BetVisibilityResponse>> GetVisibilityAsync(
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await betRepository.FindUserByIdAsync(userId, cancellationToken);
+        if (user is null)
+        {
+            return BetResult<BetVisibilityResponse>.Failure(
+                BetErrorCode.UserNotFound,
+                "User was not found.");
+        }
+
+        return BetResult<BetVisibilityResponse>.Success(new BetVisibilityResponse(user.ShowBetsPublicly));
+    }
+
+    public async Task<BetResult<BetVisibilityResponse>> UpdateVisibilityAsync(
+        int userId,
+        UpdateBetVisibilityRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await betRepository.FindUserByIdAsync(userId, cancellationToken);
+        if (user is null)
+        {
+            return BetResult<BetVisibilityResponse>.Failure(
+                BetErrorCode.UserNotFound,
+                "User was not found.");
+        }
+
+        user.ShowBetsPublicly = request.ShowBetsPublicly;
+
+        await betRepository.SaveChangesAsync(cancellationToken);
+
+        return BetResult<BetVisibilityResponse>.Success(new BetVisibilityResponse(user.ShowBetsPublicly));
+    }
+
+    public async Task<BetResult<IReadOnlyList<PublicBetResponse>>> ListPublicAsync(
+        int userId,
+        int? matchId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await betRepository.FindUserByIdAsync(userId, cancellationToken);
+        if (user is null)
+        {
+            return BetResult<IReadOnlyList<PublicBetResponse>>.Failure(
+                BetErrorCode.UserNotFound,
+                "User was not found.");
+        }
+
+        if (!user.ShowBetsPublicly)
+        {
+            return BetResult<IReadOnlyList<PublicBetResponse>>.Failure(
+                BetErrorCode.PublicBetsNotAllowed,
+                "Make your bets public to see public bets from other players.");
+        }
+
+        if (matchId.HasValue && !await betRepository.MatchExistsAsync(matchId.Value, cancellationToken))
+        {
+            return BetResult<IReadOnlyList<PublicBetResponse>>.Failure(
+                BetErrorCode.MatchNotFound,
+                "Match was not found.");
+        }
+
+        var bets = await betRepository.ListPublicAsync(matchId, cancellationToken);
+        var response = bets
+            .Select(bet => mapPublicBet(bet, userId))
+            .ToList();
+
+        return BetResult<IReadOnlyList<PublicBetResponse>>.Success(response);
+    }
+
     private static BetResponse mapBet(Bet bet)
     {
         if (bet.Match?.HomeTeam is null || bet.Match.AwayTeam is null)
@@ -127,5 +197,23 @@ public sealed class BetsService(
                 bet.Match.Status.ToString(),
                 bet.Match.HomeGoals,
                 bet.Match.AwayGoals));
+    }
+
+    private static PublicBetResponse mapPublicBet(Bet bet, int currentUserId)
+    {
+        if (bet.User is null)
+        {
+            throw new InvalidOperationException("Bet user must be loaded before mapping.");
+        }
+
+        return new PublicBetResponse(
+            bet.MatchId,
+            bet.UserId,
+            bet.User.Name,
+            bet.HomeGoalsPrediction,
+            bet.AwayGoalsPrediction,
+            bet.PointsEarned,
+            bet.CreatedAt,
+            bet.UserId == currentUserId);
     }
 }

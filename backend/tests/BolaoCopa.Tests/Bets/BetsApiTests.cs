@@ -35,10 +35,19 @@ public sealed class BetsApiTests
             awayGoalsPrediction = 1
         });
         var get = await client.GetAsync("/bets/me");
+        var getVisibility = await client.GetAsync("/bets/visibility");
+        var putVisibility = await client.PutAsJsonAsync("/bets/visibility", new
+        {
+            showBetsPublicly = true
+        });
+        var getPublic = await client.GetAsync("/bets/public");
 
         Assert.Equal(HttpStatusCode.Unauthorized, post.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, put.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, get.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, getVisibility.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, putVisibility.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, getPublic.StatusCode);
     }
 
     [Fact]
@@ -186,6 +195,90 @@ public sealed class BetsApiTests
     }
 
     [Fact]
+    public async Task BetVisibility_WhenUpdated_PersistsPreference()
+    {
+        using var factory = new BetsApiFactory();
+        var client = factory.CreateClient();
+        await authenticateAsync(client, "user1@example.com");
+
+        var initialResponse = await client.GetAsync("/bets/visibility");
+        using var initialDocument = JsonDocument.Parse(await initialResponse.Content.ReadAsStringAsync());
+
+        var updateResponse = await client.PutAsJsonAsync("/bets/visibility", new
+        {
+            showBetsPublicly = true
+        });
+        using var updateDocument = JsonDocument.Parse(await updateResponse.Content.ReadAsStringAsync());
+
+        var persistedResponse = await client.GetAsync("/bets/visibility");
+        using var persistedDocument = JsonDocument.Parse(await persistedResponse.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, initialResponse.StatusCode);
+        Assert.False(initialDocument.RootElement.GetProperty("showBetsPublicly").GetBoolean());
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.True(updateDocument.RootElement.GetProperty("showBetsPublicly").GetBoolean());
+        Assert.Equal(HttpStatusCode.OK, persistedResponse.StatusCode);
+        Assert.True(persistedDocument.RootElement.GetProperty("showBetsPublicly").GetBoolean());
+    }
+
+    [Fact]
+    public async Task GetPublicBets_WhenRequesterIsHidden_ReturnsForbidden()
+    {
+        using var factory = new BetsApiFactory();
+        var client = factory.CreateClient();
+        await authenticateAsync(client, "user1@example.com");
+
+        var response = await client.GetAsync("/bets/public");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetPublicBets_WhenMatchDoesNotExist_ReturnsNotFound()
+    {
+        using var factory = new BetsApiFactory();
+        var client = factory.CreateClient();
+        await authenticateAsync(client, "user1@example.com");
+        await updateVisibilityAsync(client, showBetsPublicly: true);
+
+        var response = await client.GetAsync("/bets/public?matchId=999");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetPublicBets_WhenRequesterIsPublic_ReturnsOnlyPublicUserBetsWithoutEmail()
+    {
+        using var factory = new BetsApiFactory();
+        var client = factory.CreateClient();
+        await authenticateAsync(client, "user1@example.com");
+        await updateVisibilityAsync(client, showBetsPublicly: true);
+        await createBetAsync(client, matchId: 1);
+
+        await authenticateAsync(client, "user2@example.com");
+        await createBetAsync(client, matchId: 1);
+
+        await authenticateAsync(client, "user3@example.com");
+        await updateVisibilityAsync(client, showBetsPublicly: true);
+        await createBetAsync(client, matchId: 1);
+
+        await authenticateAsync(client, "user1@example.com");
+        var response = await client.GetAsync("/bets/public?matchId=1");
+        var body = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(body);
+        var bets = document.RootElement.EnumerateArray().ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal([1, 3], bets.Select(bet => bet.GetProperty("userId").GetInt32()).ToArray());
+        Assert.All(bets, bet => Assert.Equal(1, bet.GetProperty("matchId").GetInt32()));
+        Assert.Contains(bets, bet => bet.GetProperty("userName").GetString() == "user1"
+            && bet.GetProperty("isCurrentUser").GetBoolean());
+        Assert.DoesNotContain(bets, bet => bet.GetProperty("userId").GetInt32() == 2);
+        Assert.DoesNotContain("\"email\"", body);
+        Assert.DoesNotContain("@example.com", body);
+    }
+
+    [Fact]
     public async Task PostBet_WhenGoalsAreNegative_ReturnsBadRequest()
     {
         using var factory = new BetsApiFactory();
@@ -215,6 +308,16 @@ public sealed class BetsApiTests
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         return document.RootElement.GetProperty("id").GetInt32();
+    }
+
+    private static async Task updateVisibilityAsync(HttpClient client, bool showBetsPublicly)
+    {
+        var response = await client.PutAsJsonAsync("/bets/visibility", new
+        {
+            showBetsPublicly
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     private static async Task authenticateAsync(HttpClient client, string email)

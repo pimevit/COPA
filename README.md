@@ -13,8 +13,8 @@ usuario autenticado), a Tarefa 12 (scaffold do frontend com Tailwind, router,
 auth store, cliente HTTP e TanStack Query), a Tarefa 13 (telas de login e
 cadastro consumindo a API) e a Tarefa 14 (tela de partidas/jogos do dia).
 Tambem cobre a Tarefa 15 (fluxo frontend de palpites com formulario,
-historico, janela, cache e pendencia documentada de terceiros) e a Tarefa 16
-(tela de ranking com polling). O frontend tambem possui logout client-side do
+historico, janela, cache e visibilidade publica com privacidade reciproca) e a
+Tarefa 16 (tela de ranking com polling). O frontend tambem possui logout client-side do
 MVP na area autenticada.
 
 Ainda nao ha tela real de estatisticas no frontend.
@@ -218,6 +218,11 @@ A API possui endpoints autenticados para palpites:
 - `POST /bets`: cria um palpite para o usuario logado.
 - `PUT /bets/{id}`: edita um palpite do proprio usuario.
 - `GET /bets/me`: lista o historico de palpites do usuario logado.
+- `GET /bets/visibility`: retorna se os palpites do usuario aparecem para
+  outros jogadores.
+- `PUT /bets/visibility`: atualiza a preferencia global de visibilidade.
+- `GET /bets/public?matchId={id}`: lista palpites de jogadores publicos; o
+  usuario logado tambem precisa estar publico para acessar.
 
 Todos exigem header Bearer:
 
@@ -266,11 +271,14 @@ Regras implementadas:
   logado.
 - `GET /bets/me` retorna apenas palpites do usuario autenticado, com dados da
   partida e das selecoes.
+- Usuarios ficam ocultos por padrao. Quem esta oculto nao aparece para outros
+  jogadores e tambem nao acessa `GET /bets/public`.
+- `GET /bets/public` retorna somente `matchId`, `userId`, `userName`, placar
+  previsto, pontos, data de criacao e `isCurrentUser`; e-mail nao e exposto.
 - `PointsEarned` permanece `0`/valor atual; a Tarefa 08 nao calcula nem
   recalcula pontuacao.
 
-Fora da Tarefa 08: visibilidade publica de palpites de outros usuarios, ranking,
-estatisticas e frontend.
+Fora da Tarefa 08 original: ranking, estatisticas e frontend.
 
 ### Resultados
 
@@ -649,14 +657,14 @@ Estrutura principal:
   palpite.
 - `src/features/matches/utils`: formatacao de data/hora, jogos do dia,
   resultado e labels de fase/status.
-- `src/features/bets/api/betsApi.ts`: chamadas `GET /bets/me`, `POST /bets` e
-  `PUT /bets/{id}`.
+- `src/features/bets/api/betsApi.ts`: chamadas de historico, criacao, edicao,
+  visibilidade e palpites publicos.
 - `src/features/bets/hooks/useBets.ts`: hooks TanStack Query para historico,
-  criacao e edicao de palpites.
+  criacao, edicao, visibilidade e palpites publicos.
 - `src/features/bets/components`: formulario de palpite, painel por partida,
-  historico e aviso de visibilidade de terceiros.
+  historico, controle de privacidade e lista de palpites dos jogadores.
 - `src/features/bets/utils`: helpers puros de indexacao por partida,
-  create/update, validacao local, erro de API e partida iniciada.
+  create/update, validacao local e erro de API.
 - `src/features/ranking/api/rankingApi.ts`: chamada tipada para `GET /ranking`.
 - `src/features/ranking/hooks/useRanking.ts`: hook TanStack Query com polling
   de 30 segundos.
@@ -772,6 +780,10 @@ Comportamento implementado:
 - erro de janela fechada da API (`422`) aparece no formulario e bloqueia nova
   tentativa local ate recarregar os dados;
 - o historico do usuario aparece na mesma tela, usando apenas `GET /bets/me`;
+- a tela exibe um controle global de privacidade; oculto e o padrao;
+- jogadores ocultos nao veem palpites de terceiros e nao aparecem na lista;
+- jogadores publicos veem imediatamente os palpites de outros jogadores
+  publicos, agrupados por partida;
 - loading, erro com tentar novamente, lista vazia e layout responsivo estao
   cobertos.
 
@@ -788,6 +800,21 @@ type UpdateBetRequest = {
   homeGoalsPrediction: number
   awayGoalsPrediction: number
 }
+
+type BetVisibilityResponse = {
+  showBetsPublicly: boolean
+}
+
+type PublicBet = {
+  matchId: number
+  userId: number
+  userName: string
+  homeGoalsPrediction: number
+  awayGoalsPrediction: number
+  pointsEarned: number
+  createdAt: string
+  isCurrentUser: boolean
+}
 ```
 
 Validar manualmente:
@@ -799,16 +826,18 @@ Validar manualmente:
 5. Salve um palpite em partida com janela aberta.
 6. Edite o mesmo palpite e confirme que o historico atualiza.
 7. Tente uma partida com janela fechada e confirme o bloqueio visual.
+8. Deixe a privacidade como oculta e confirme que os palpites dos jogadores
+   ficam bloqueados.
+9. Mude para publico e confirme que palpites publicos aparecem por partida.
 
 Visibilidade de palpites de terceiros:
 
-- nao ha endpoint aprovado no backend para listar palpites de outros usuarios;
-- por isso, o frontend nao busca nem exibe dados de terceiros;
-- a regra provisoria esta isolada em `hasMatchStarted`: `InProgress` e
-  `Finished` liberam visibilidade, `Scheduled` mantem oculto, e status
-  desconhecido usa fallback por `matchDate <= now`;
-- quando existir contrato de dados, a UI pode renderizar terceiros somente apos
-  `hasMatchStarted` retornar verdadeiro.
+- `GET /bets/public` e autenticado e bloqueia com `403` quando o usuario logado
+  esta oculto;
+- a preferencia global fica em `GET/PUT /bets/visibility`;
+- a visibilidade e imediata para jogadores publicos, sem depender do inicio da
+  partida ou fechamento da janela;
+- a resposta publica nao expõe e-mail.
 
 Validar localmente:
 

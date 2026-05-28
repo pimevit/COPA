@@ -6,5 +6,7 @@ public enum BetErrorCode
     MatchNotFound,
     BetNotFound,
     BettingWindowClosed,
-    DuplicateBet
+    DuplicateBet,
+    UserNotFound,
+    PublicBetsNotAllowed
 }
