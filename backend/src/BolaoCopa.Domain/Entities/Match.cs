@@ -13,6 +13,7 @@ public sealed class Match
     public Stage Stage { get; set; }
     public MatchStatus Status { get; set; }
     public DateTime AllowBetUntil { get; set; }
+    public bool IsBettingLocked { get; set; }
 
     public Team? HomeTeam { get; set; }
     public Team? AwayTeam { get; set; }

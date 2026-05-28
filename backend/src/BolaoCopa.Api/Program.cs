@@ -5,6 +5,7 @@ using BolaoCopa.Api.Endpoints;
 using BolaoCopa.Api.Middleware;
 using BolaoCopa.Api.OpenApi;
 using BolaoCopa.Api.Validation;
+using BolaoCopa.Application.Admin.Users;
 using BolaoCopa.Application.Authentication;
 using BolaoCopa.Application.Authentication.Contracts;
 using BolaoCopa.Application.Authentication.Security;
@@ -71,6 +72,7 @@ builder.Services.AddCors(options =>
     });
 });
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services.AddScoped<AdminUsersService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<BetsService>();
 builder.Services.AddScoped<MatchesService>();
@@ -149,6 +151,7 @@ routes.MapRankingEndpoints();
 routes.MapStatsEndpoints();
 routes.MapTeamsEndpoints();
 routes.MapAdminMaintenanceEndpoints();
+routes.MapAdminUsersEndpoints();
 
 app.Run();
 

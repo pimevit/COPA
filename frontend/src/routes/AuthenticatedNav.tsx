@@ -4,7 +4,7 @@ import { useLogout } from '../features/auth/hooks/useLogout'
 import { selectAuthUser, selectIsAdmin, selectIsAuthenticated, useAuthStore } from '../stores/authStore'
 
 type AuthenticatedNavProps = {
-  activePage: 'matches' | 'ranking' | 'admin'
+  activePage: 'matches' | 'ranking' | 'rules' | 'admin'
 }
 
 const activeLinkClass =
@@ -30,6 +30,9 @@ export function AuthenticatedNav({ activePage }: AuthenticatedNavProps) {
         </Link>
         <Link className={activePage === 'ranking' ? activeLinkClass : inactiveLinkClass} to="/ranking">
           Ranking
+        </Link>
+        <Link className={activePage === 'rules' ? activeLinkClass : inactiveLinkClass} to="/rules">
+          Regras
         </Link>
         {isAdmin ? (
           <Link className={activePage === 'admin' ? activeLinkClass : inactiveLinkClass} to="/admin">

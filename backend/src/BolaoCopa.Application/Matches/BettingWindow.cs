@@ -10,9 +10,9 @@ public static class BettingWindow
         return ensureUtc(utcMatchDate.Subtract(offset));
     }
 
-    public static bool IsBettingOpen(DateTime allowBetUntilUtc, DateTime nowUtc)
+    public static bool IsBettingOpen(DateTime allowBetUntilUtc, DateTime nowUtc, bool isBettingLocked = false)
     {
-        return ensureUtc(nowUtc) < ensureUtc(allowBetUntilUtc);
+        return !isBettingLocked && ensureUtc(nowUtc) < ensureUtc(allowBetUntilUtc);
     }
 
     private static DateTime ensureUtc(DateTime value)

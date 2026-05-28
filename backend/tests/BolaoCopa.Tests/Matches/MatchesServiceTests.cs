@@ -79,7 +79,8 @@ public sealed class MatchesServiceTests
             status,
             null,
             null,
-            allowBetUntil);
+            allowBetUntil,
+            false);
     }
 
     private sealed class FakeMatchReadRepository(IReadOnlyList<MatchReadModel> matches) : IMatchReadRepository

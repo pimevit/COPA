@@ -43,7 +43,8 @@ public sealed class EfMatchReadRepository(AppDbContext dbContext) : IMatchReadRe
                 match.Status,
                 match.HomeGoals,
                 match.AwayGoals,
-                match.AllowBetUntil))
+                match.AllowBetUntil,
+                match.IsBettingLocked))
             .ToListAsync(cancellationToken);
     }
 
@@ -70,7 +71,8 @@ public sealed class EfMatchReadRepository(AppDbContext dbContext) : IMatchReadRe
                 match.Status,
                 match.HomeGoals,
                 match.AwayGoals,
-                match.AllowBetUntil))
+                match.AllowBetUntil,
+                match.IsBettingLocked))
             .SingleOrDefaultAsync(cancellationToken);
     }
 

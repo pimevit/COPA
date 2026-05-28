@@ -19,6 +19,7 @@ export type MatchListItem = {
   homeGoals?: number | null
   awayGoals?: number | null
   isBettingOpen: boolean
+  isBettingLocked: boolean
 }
 
 export type MatchesQuery = {
@@ -36,4 +37,8 @@ export type CreateMatchRequest = {
 export type UpdateMatchResultRequest = {
   homeGoals: number
   awayGoals: number
+}
+
+export type UpdateMatchBettingLockRequest = {
+  isBettingLocked: boolean
 }

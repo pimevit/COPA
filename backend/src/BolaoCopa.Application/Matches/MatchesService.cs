@@ -26,7 +26,8 @@ public sealed class MatchesService(
                 match.Status.ToString(),
                 match.HomeGoals,
                 match.AwayGoals,
-                BettingWindow.IsBettingOpen(match.AllowBetUntil, nowUtc)))
+                BettingWindow.IsBettingOpen(match.AllowBetUntil, nowUtc, match.IsBettingLocked),
+                match.IsBettingLocked))
             .ToList();
     }
 
@@ -51,7 +52,8 @@ public sealed class MatchesService(
             match.Status.ToString(),
             match.HomeGoals,
             match.AwayGoals,
-            BettingWindow.IsBettingOpen(match.AllowBetUntil, nowUtc));
+            BettingWindow.IsBettingOpen(match.AllowBetUntil, nowUtc, match.IsBettingLocked),
+            match.IsBettingLocked);
     }
 
     private static TeamSummaryResponse mapTeam(TeamReadModel team)

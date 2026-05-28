@@ -24,7 +24,7 @@ public sealed class BetsService(
                 "Match was not found.");
         }
 
-        if (!BettingWindow.IsBettingOpen(match.AllowBetUntil, utcClock.UtcNow))
+        if (!BettingWindow.IsBettingOpen(match.AllowBetUntil, utcClock.UtcNow, match.IsBettingLocked))
         {
             return BetResult<BetResponse>.Failure(
                 BetErrorCode.BettingWindowClosed,
@@ -70,7 +70,7 @@ public sealed class BetsService(
                 "Bet was not found for the authenticated user.");
         }
 
-        if (!BettingWindow.IsBettingOpen(bet.Match.AllowBetUntil, utcClock.UtcNow))
+        if (!BettingWindow.IsBettingOpen(bet.Match.AllowBetUntil, utcClock.UtcNow, bet.Match.IsBettingLocked))
         {
             return BetResult<BetResponse>.Failure(
                 BetErrorCode.BettingWindowClosed,

@@ -3,8 +3,10 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { LoginPage } from '../features/auth/pages/LoginPage'
 import { RegisterPage } from '../features/auth/pages/RegisterPage'
 import { AdminPage } from '../features/admin/pages/AdminPage'
+import { AdminUsersPage } from '../features/admin/pages/AdminUsersPage'
 import { MatchesPage } from '../features/matches/pages/MatchesPage'
 import { RankingPage } from '../features/ranking/pages/RankingPage'
+import { RulesPage } from '../features/rules/pages/RulesPage'
 import { AdminRoute } from '../routes/AdminRoute'
 import { PlaceholderPage } from '../routes/PlaceholderPage'
 import { ProtectedRoute } from '../routes/ProtectedRoute'
@@ -48,6 +50,10 @@ export const router = createBrowserRouter([
         path: '/ranking',
         element: <RankingPage />,
       },
+      {
+        path: '/rules',
+        element: <RulesPage />,
+      },
     ],
   },
   {
@@ -56,6 +62,10 @@ export const router = createBrowserRouter([
       {
         path: '/admin',
         element: <AdminPage />,
+      },
+      {
+        path: '/admin/users',
+        element: <AdminUsersPage />,
       },
     ],
   },

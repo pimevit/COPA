@@ -1,7 +1,17 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 
-import { createMatch, fetchMatches, updateMatchResult } from '../../matches/api/matchesApi'
-import type { CreateMatchRequest, UpdateMatchResultRequest } from '../../../types/matches'
+import {
+  createMatch,
+  deleteMatch,
+  fetchMatches,
+  updateMatchBettingLock,
+  updateMatchResult,
+} from '../../matches/api/matchesApi'
+import type {
+  CreateMatchRequest,
+  UpdateMatchBettingLockRequest,
+  UpdateMatchResultRequest,
+} from '../../../types/matches'
 import {
   clearApplicationData,
   importBrasileiraoSerieA2026Teams,
@@ -31,6 +41,20 @@ export function useAdminMatches() {
 export function useCreateMatchMutation() {
   return useMutation({
     mutationFn: (request: CreateMatchRequest) => createMatch(request),
+  })
+}
+
+export function useDeleteMatchMutation() {
+  return useMutation({
+    mutationFn: ({ matchId, deleteBets }: { matchId: number; deleteBets: boolean }) =>
+      deleteMatch(matchId, { deleteBets }),
+  })
+}
+
+export function useUpdateMatchBettingLockMutation() {
+  return useMutation({
+    mutationFn: ({ matchId, request }: { matchId: number; request: UpdateMatchBettingLockRequest }) =>
+      updateMatchBettingLock(matchId, request),
   })
 }
 

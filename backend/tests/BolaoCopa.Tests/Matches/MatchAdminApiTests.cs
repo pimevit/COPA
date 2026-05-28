@@ -68,6 +68,7 @@ public sealed class MatchAdminApiTests
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal("Scheduled", match.GetProperty("status").GetString());
         Assert.True(match.GetProperty("isBettingOpen").GetBoolean());
+        Assert.False(match.GetProperty("isBettingLocked").GetBoolean());
         Assert.Equal("Brazil", match.GetProperty("homeTeam").GetProperty("name").GetString());
 
         using var scope = factory.Services.CreateScope();
@@ -170,6 +171,191 @@ public sealed class MatchAdminApiTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact]
+    public async Task DeleteMatch_WhenAdminAndMatchHasNoBets_DeletesMatch()
+    {
+        using var factory = new MatchAdminApiFactory();
+        var client = factory.CreateClient();
+
+        await authenticateAsync(client, "admin@example.com");
+        var response = await client.DeleteAsync("/matches/1");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        Assert.Equal(0, await dbContext.Matches.CountAsync());
+        Assert.Equal(0, await dbContext.Bets.CountAsync());
+    }
+
+    [Fact]
+    public async Task DeleteMatch_WhenAdminAndMatchHasBetsWithoutDeleteBets_ReturnsConflict()
+    {
+        using var factory = new MatchAdminApiFactory();
+        var client = factory.CreateClient();
+
+        await authenticateAsync(client, "user@example.com");
+        await createBetAsync(client, matchId: 1);
+
+        await authenticateAsync(client, "admin@example.com");
+        var response = await client.DeleteAsync("/matches/1");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        Assert.Equal(1, await dbContext.Matches.CountAsync());
+        Assert.Equal(1, await dbContext.Bets.CountAsync());
+    }
+
+    [Fact]
+    public async Task DeleteMatch_WhenAdminAndDeleteBetsIsTrue_DeletesMatchAndRelatedBets()
+    {
+        using var factory = new MatchAdminApiFactory();
+        var client = factory.CreateClient();
+
+        await authenticateAsync(client, "user@example.com");
+        await createBetAsync(client, matchId: 1);
+
+        await authenticateAsync(client, "admin@example.com");
+        var response = await client.DeleteAsync("/matches/1?deleteBets=true");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        Assert.Equal(0, await dbContext.Matches.CountAsync());
+        Assert.Equal(0, await dbContext.Bets.CountAsync());
+    }
+
+    [Fact]
+    public async Task DeleteMatch_WhenUserIsNotAdmin_ReturnsForbidden()
+    {
+        using var factory = new MatchAdminApiFactory();
+        var client = factory.CreateClient();
+        await authenticateAsync(client, "user@example.com");
+
+        var response = await client.DeleteAsync("/matches/1");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteMatch_WhenMatchDoesNotExist_ReturnsNotFound()
+    {
+        using var factory = new MatchAdminApiFactory();
+        var client = factory.CreateClient();
+        await authenticateAsync(client, "admin@example.com");
+
+        var response = await client.DeleteAsync("/matches/999");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateBettingLock_WhenAdminLocksOpenMatch_ClosesWindowAndRejectsBetChanges()
+    {
+        using var factory = new MatchAdminApiFactory();
+        var client = factory.CreateClient();
+
+        await authenticateAsync(client, "user@example.com");
+        var betId = await createBetAsync(client, matchId: 1);
+
+        await authenticateAsync(client, "admin@example.com");
+        var lockResponse = await client.PutAsJsonAsync("/matches/1/betting-lock", new { isBettingLocked = true });
+        var matchResponse = await client.GetAsync("/matches/1");
+        using var document = JsonDocument.Parse(await matchResponse.Content.ReadAsStringAsync());
+        var match = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.NoContent, lockResponse.StatusCode);
+        Assert.False(match.GetProperty("isBettingOpen").GetBoolean());
+        Assert.True(match.GetProperty("isBettingLocked").GetBoolean());
+
+        await authenticateAsync(client, "other@example.com");
+        var createResponse = await client.PostAsJsonAsync("/bets", new
+        {
+            matchId = 1,
+            homeGoalsPrediction = 1,
+            awayGoalsPrediction = 0
+        });
+
+        await authenticateAsync(client, "user@example.com");
+        var updateResponse = await client.PutAsJsonAsync($"/bets/{betId}", new
+        {
+            homeGoalsPrediction = 3,
+            awayGoalsPrediction = 1
+        });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, updateResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateBettingLock_WhenAdminUnlocksOpenWindow_ReopensBettingWindow()
+    {
+        using var factory = new MatchAdminApiFactory();
+        var client = factory.CreateClient();
+        await authenticateAsync(client, "admin@example.com");
+
+        await client.PutAsJsonAsync("/matches/1/betting-lock", new { isBettingLocked = true });
+        var unlockResponse = await client.PutAsJsonAsync("/matches/1/betting-lock", new { isBettingLocked = false });
+        var matchResponse = await client.GetAsync("/matches/1");
+        using var document = JsonDocument.Parse(await matchResponse.Content.ReadAsStringAsync());
+        var match = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.NoContent, unlockResponse.StatusCode);
+        Assert.True(match.GetProperty("isBettingOpen").GetBoolean());
+        Assert.False(match.GetProperty("isBettingLocked").GetBoolean());
+    }
+
+    [Fact]
+    public async Task UpdateBettingLock_WhenAutomaticWindowIsClosed_DoesNotReopenBettingWindow()
+    {
+        using var factory = new MatchAdminApiFactory();
+        var client = factory.CreateClient();
+        factory.CloseMatchWindow(matchId: 1);
+        await authenticateAsync(client, "admin@example.com");
+
+        var unlockResponse = await client.PutAsJsonAsync("/matches/1/betting-lock", new { isBettingLocked = false });
+        var matchResponse = await client.GetAsync("/matches/1");
+        using var document = JsonDocument.Parse(await matchResponse.Content.ReadAsStringAsync());
+        var match = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.NoContent, unlockResponse.StatusCode);
+        Assert.False(match.GetProperty("isBettingOpen").GetBoolean());
+        Assert.False(match.GetProperty("isBettingLocked").GetBoolean());
+    }
+
+    [Fact]
+    public async Task UpdateBettingLock_WhenUserIsNotAdmin_ReturnsForbidden()
+    {
+        using var factory = new MatchAdminApiFactory();
+        var client = factory.CreateClient();
+        await authenticateAsync(client, "user@example.com");
+
+        var response = await client.PutAsJsonAsync("/matches/1/betting-lock", new { isBettingLocked = true });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    private static async Task<int> createBetAsync(HttpClient client, int matchId)
+    {
+        var response = await client.PostAsJsonAsync("/bets", new
+        {
+            matchId,
+            homeGoalsPrediction = 2,
+            awayGoalsPrediction = 1
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return document.RootElement.GetProperty("id").GetInt32();
+    }
+
     private static async Task authenticateAsync(HttpClient client, string email)
     {
         var password = "secret123";
@@ -200,6 +386,16 @@ public sealed class MatchAdminApiTests
     {
         private static readonly DateTime FixedNowUtc = new(2026, 6, 10, 12, 0, 0, DateTimeKind.Utc);
         private readonly string databaseName = $"match-admin-api-{Guid.NewGuid():N}";
+
+        public void CloseMatchWindow(int matchId)
+        {
+            using var scope = Services.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var match = dbContext.Matches.Single(match => match.Id == matchId);
+
+            match.AllowBetUntil = FixedNowUtc;
+            dbContext.SaveChanges();
+        }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {

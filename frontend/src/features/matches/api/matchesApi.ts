@@ -3,6 +3,7 @@ import type {
   CreateMatchRequest,
   MatchesQuery,
   MatchListItem,
+  UpdateMatchBettingLockRequest,
   UpdateMatchResultRequest,
 } from '../../../types/matches'
 
@@ -28,6 +29,16 @@ export function fetchMatches(query?: MatchesQuery): Promise<MatchListItem[]> {
 
 export function createMatch(request: CreateMatchRequest): Promise<MatchListItem> {
   return apiClient.post<MatchListItem>('/matches', request)
+}
+
+export function deleteMatch(matchId: number, options: { deleteBets: boolean }): Promise<unknown> {
+  const searchParams = new URLSearchParams({ deleteBets: String(options.deleteBets) })
+
+  return apiClient.delete(`/matches/${matchId}?${searchParams}`)
+}
+
+export function updateMatchBettingLock(matchId: number, request: UpdateMatchBettingLockRequest): Promise<unknown> {
+  return apiClient.put(`/matches/${matchId}/betting-lock`, request)
 }
 
 export function updateMatchResult(matchId: number, request: UpdateMatchResultRequest): Promise<unknown> {

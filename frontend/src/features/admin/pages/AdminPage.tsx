@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 
 import { ApiError } from '../../../api/httpClient'
 import { myBetsQueryKey } from '../../bets/hooks/useBets'
@@ -18,8 +19,10 @@ import {
   useAdminMatches,
   useAdminTeams,
   useCreateMatchMutation,
+  useDeleteMatchMutation,
   useImportBrasileiraoTeamsMutation,
   useImportWorldCupTeamsMutation,
+  useUpdateMatchBettingLockMutation,
   useUpdateMatchResultMutation,
 } from '../hooks/useAdminMatches'
 
@@ -27,8 +30,14 @@ const stages: MatchStage[] = ['Groups', 'RoundOf16', 'QuarterFinals', 'SemiFinal
 
 type ResultRowProps = {
   match: MatchListItem
+  isDeletingSafe: boolean
+  isDeletingWithBets: boolean
+  isDisabled: boolean
+  isLocking: boolean
   isSaving: boolean
+  onDelete: (match: MatchListItem, deleteBets: boolean) => Promise<void>
   onSave: (matchId: number, homeGoals: number, awayGoals: number) => Promise<void>
+  onToggleBettingLock: (match: MatchListItem) => Promise<void>
 }
 
 export function AdminPage() {
@@ -36,6 +45,8 @@ export function AdminPage() {
   const teamsQuery = useAdminTeams()
   const matchesQuery = useAdminMatches()
   const createMatchMutation = useCreateMatchMutation()
+  const deleteMatchMutation = useDeleteMatchMutation()
+  const updateBettingLockMutation = useUpdateMatchBettingLockMutation()
   const updateResultMutation = useUpdateMatchResultMutation()
   const importBrasileiraoMutation = useImportBrasileiraoTeamsMutation()
   const importWorldCupMutation = useImportWorldCupTeamsMutation()
@@ -48,6 +59,8 @@ export function AdminPage() {
   const [createSuccess, setCreateSuccess] = useState<string | null>(null)
   const [resultError, setResultError] = useState<string | null>(null)
   const [resultSuccess, setResultSuccess] = useState<string | null>(null)
+  const [deletingMatch, setDeletingMatch] = useState<{ matchId: number; deleteBets: boolean } | null>(null)
+  const [lockingMatchId, setLockingMatchId] = useState<number | null>(null)
   const [maintenanceError, setMaintenanceError] = useState<string | null>(null)
   const [maintenanceSuccess, setMaintenanceSuccess] = useState<string | null>(null)
 
@@ -122,6 +135,62 @@ export function AdminPage() {
     }
   }
 
+  async function handleDeleteMatch(match: MatchListItem, deleteBets: boolean) {
+    const confirmed = window.confirm(
+      deleteBets
+        ? 'Excluir esta partida e todos os palpites vinculados? Esta acao nao pode ser desfeita.'
+        : 'Excluir esta partida? Se houver palpites, a remocao sera bloqueada.',
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    setResultError(null)
+    setResultSuccess(null)
+    setDeletingMatch({ matchId: match.id, deleteBets })
+
+    try {
+      await deleteMatchMutation.mutateAsync({ matchId: match.id, deleteBets })
+      await refreshAdminData()
+      setResultSuccess('Partida excluida.')
+    } catch (error) {
+      setResultError(mapDeleteMatchError(error, deleteBets))
+    } finally {
+      setDeletingMatch(null)
+    }
+  }
+
+  async function handleToggleBettingLock(match: MatchListItem) {
+    const shouldLock = !match.isBettingLocked
+    const confirmed = window.confirm(
+      shouldLock
+        ? 'Bloquear palpites desta partida agora?'
+        : 'Desbloquear palpites desta partida? A janela automatica ainda sera respeitada.',
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    setResultError(null)
+    setResultSuccess(null)
+    setLockingMatchId(match.id)
+
+    try {
+      await updateBettingLockMutation.mutateAsync({
+        matchId: match.id,
+        request: { isBettingLocked: shouldLock },
+      })
+      await refreshAdminData()
+      setResultSuccess(shouldLock ? 'Palpites bloqueados para a partida.' : 'Bloqueio manual removido.')
+    } catch (error) {
+      setResultError(mapAdminError(error, 'Nao foi possivel atualizar o bloqueio de palpites.'))
+    } finally {
+      setLockingMatchId(null)
+    }
+  }
+
   async function runMaintenanceAction(action: () => Promise<AdminMaintenanceResponse>) {
     setMaintenanceError(null)
     setMaintenanceSuccess(null)
@@ -163,14 +232,22 @@ export function AdminPage() {
       <section className="mx-auto flex w-full max-w-6xl flex-col gap-5">
         <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800">
           <AuthenticatedNav activePage="admin" />
-          <div>
-            <p className="text-sm font-medium uppercase tracking-normal text-emerald-700 dark:text-emerald-300">
-              Administracao
-            </p>
-            <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">Painel administrativo</h1>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-              Cadastre partidas e atualize resultados oficiais.
-            </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-normal text-emerald-700 dark:text-emerald-300">
+                Administracao
+              </p>
+              <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">Painel administrativo</h1>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                Cadastre partidas e atualize resultados oficiais.
+              </p>
+            </div>
+            <Link
+              className="w-fit rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
+              to="/admin/users"
+            >
+              Gerenciar usuarios
+            </Link>
           </div>
         </header>
 
@@ -294,9 +371,9 @@ export function AdminPage() {
         <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold tracking-normal">Atualizar resultado</h2>
+              <h2 className="text-lg font-semibold tracking-normal">Gerenciar partidas</h2>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                Salvar um resultado fecha a partida e recalcula os pontos dos palpites.
+                Salve resultados oficiais, bloqueie palpites ou exclua uma partida cadastrada.
               </p>
             </div>
             <button
@@ -331,9 +408,27 @@ export function AdminPage() {
               {matches.map((match) => (
                 <li key={match.id}>
                   <ResultRow
+                    isDeletingSafe={
+                      deleteMatchMutation.isPending &&
+                      deletingMatch?.matchId === match.id &&
+                      !deletingMatch.deleteBets
+                    }
+                    isDeletingWithBets={
+                      deleteMatchMutation.isPending &&
+                      deletingMatch?.matchId === match.id &&
+                      deletingMatch.deleteBets
+                    }
+                    isDisabled={
+                      updateResultMutation.isPending ||
+                      updateBettingLockMutation.isPending ||
+                      deleteMatchMutation.isPending
+                    }
+                    isLocking={updateBettingLockMutation.isPending && lockingMatchId === match.id}
                     isSaving={updateResultMutation.isPending}
                     match={match}
+                    onDelete={handleDeleteMatch}
                     onSave={handleSaveResult}
+                    onToggleBettingLock={handleToggleBettingLock}
                   />
                 </li>
               ))}
@@ -348,7 +443,17 @@ export function AdminPage() {
   )
 }
 
-function ResultRow({ isSaving, match, onSave }: ResultRowProps) {
+function ResultRow({
+  isDeletingSafe,
+  isDeletingWithBets,
+  isDisabled,
+  isLocking,
+  isSaving,
+  match,
+  onDelete,
+  onSave,
+  onToggleBettingLock,
+}: ResultRowProps) {
   const [homeGoals, setHomeGoals] = useState(match.homeGoals?.toString() ?? '')
   const [awayGoals, setAwayGoals] = useState(match.awayGoals?.toString() ?? '')
   const [localError, setLocalError] = useState<string | null>(null)
@@ -385,14 +490,19 @@ function ResultRow({ isSaving, match, onSave }: ResultRowProps) {
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           {formatMatchDateTime(match.matchDate)} · {getStageLabel(match.stage)} · {getStatusLabel(match.status)}
         </p>
+        {match.isBettingLocked ? (
+          <p className="mt-2 w-fit rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            Palpites bloqueados manualmente
+          </p>
+        ) : null}
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start">
         <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
           {match.homeTeam.code}
           <input
             className="h-10 w-24 rounded-md border border-slate-300 bg-white px-3 text-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
-            disabled={isSaving}
+            disabled={isDisabled}
             min={0}
             onChange={(event) => setHomeGoals(event.target.value)}
             type="number"
@@ -403,7 +513,7 @@ function ResultRow({ isSaving, match, onSave }: ResultRowProps) {
           {match.awayTeam.code}
           <input
             className="h-10 w-24 rounded-md border border-slate-300 bg-white px-3 text-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
-            disabled={isSaving}
+            disabled={isDisabled}
             min={0}
             onChange={(event) => setAwayGoals(event.target.value)}
             type="number"
@@ -411,11 +521,35 @@ function ResultRow({ isSaving, match, onSave }: ResultRowProps) {
           />
         </label>
         <button
-          className="mt-auto h-10 rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400 dark:focus:ring-offset-slate-950"
-          disabled={isSaving}
+          className="mt-auto h-10 whitespace-nowrap rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400 dark:focus:ring-offset-slate-950"
+          disabled={isDisabled}
           type="submit"
         >
           {isSaving ? 'Salvando...' : 'Salvar'}
+        </button>
+        <button
+          className="mt-auto h-10 whitespace-nowrap rounded-md border border-amber-300 px-3 text-sm font-semibold text-amber-800 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 dark:border-amber-900 dark:text-amber-300 dark:hover:bg-amber-950 dark:focus:ring-offset-slate-950"
+          disabled={isDisabled}
+          onClick={() => void onToggleBettingLock(match)}
+          type="button"
+        >
+          {isLocking ? 'Atualizando...' : match.isBettingLocked ? 'Desbloquear palpites' : 'Bloquear palpites'}
+        </button>
+        <button
+          className="mt-auto h-10 whitespace-nowrap rounded-md border border-red-300 px-3 text-sm font-semibold text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950 dark:focus:ring-offset-slate-950"
+          disabled={isDisabled}
+          onClick={() => void onDelete(match, false)}
+          type="button"
+        >
+          {isDeletingSafe ? 'Excluindo...' : 'Excluir se sem palpites'}
+        </button>
+        <button
+          className="mt-auto h-10 whitespace-nowrap rounded-md bg-red-700 px-3 text-sm font-semibold text-white hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400 dark:bg-red-500 dark:text-red-950 dark:hover:bg-red-400 dark:focus:ring-offset-slate-950"
+          disabled={isDisabled}
+          onClick={() => void onDelete(match, true)}
+          type="button"
+        >
+          {isDeletingWithBets ? 'Excluindo...' : 'Excluir com palpites'}
         </button>
       </div>
 
@@ -459,4 +593,12 @@ function mapAdminError(error: unknown, fallback = 'Nao foi possivel salvar.'): s
   }
 
   return fallback
+}
+
+function mapDeleteMatchError(error: unknown, deleteBets: boolean): string {
+  if (!deleteBets && error instanceof ApiError && error.status === 409) {
+    return 'Esta partida tem palpites. Use "Excluir com palpites" para remover tudo.'
+  }
+
+  return mapAdminError(error, 'Nao foi possivel excluir a partida.')
 }

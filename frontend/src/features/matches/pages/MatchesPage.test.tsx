@@ -47,6 +47,7 @@ const baseMatch: MatchListItem = {
   homeGoals: null,
   awayGoals: null,
   isBettingOpen: true,
+  isBettingLocked: false,
 }
 
 const baseBet: MyBet = {

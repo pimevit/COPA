@@ -6,5 +6,6 @@ public enum MatchResultErrorCode
     MatchNotFound = 1,
     TeamNotFound = 2,
     SameTeams = 3,
-    DuplicateMatch = 4
+    DuplicateMatch = 4,
+    MatchHasBets = 5
 }

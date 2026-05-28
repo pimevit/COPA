@@ -9,4 +9,5 @@ public sealed record MatchListItemResponse(
     string Status,
     int? HomeGoals,
     int? AwayGoals,
-    bool IsBettingOpen);
+    bool IsBettingOpen,
+    bool IsBettingLocked);

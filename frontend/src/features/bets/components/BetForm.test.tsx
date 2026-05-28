@@ -25,6 +25,7 @@ const match: MatchListItem = {
   homeGoals: null,
   awayGoals: null,
   isBettingOpen: true,
+  isBettingLocked: false,
 }
 
 describe('BetForm', () => {

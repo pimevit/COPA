@@ -103,6 +103,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         configureUtcDate(entity.Property(match => match.MatchDate));
         configureUtcDate(entity.Property(match => match.AllowBetUntil));
 
+        entity.Property(match => match.IsBettingLocked)
+            .HasDefaultValue(false)
+            .IsRequired();
+
         entity.Property(match => match.Stage)
             .HasConversion<string>()
             .HasMaxLength(30)

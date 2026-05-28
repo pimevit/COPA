@@ -68,7 +68,59 @@ public sealed class MatchAdminService(
             match.Status.ToString(),
             match.HomeGoals,
             match.AwayGoals,
-            BettingWindow.IsBettingOpen(match.AllowBetUntil, utcClock.UtcNow)));
+            BettingWindow.IsBettingOpen(match.AllowBetUntil, utcClock.UtcNow, match.IsBettingLocked),
+            match.IsBettingLocked));
+    }
+
+    public async Task<MatchResult<bool>> UpdateBettingLockAsync(
+        int matchId,
+        UpdateMatchBettingLockRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var match = await matchAdminRepository.FindMatchAsync(matchId, cancellationToken);
+        if (match is null)
+        {
+            return MatchResult<bool>.Failure(
+                MatchResultErrorCode.MatchNotFound,
+                "Match was not found.");
+        }
+
+        match.IsBettingLocked = request.IsBettingLocked!.Value;
+
+        await matchAdminRepository.SaveChangesAsync(cancellationToken);
+
+        return MatchResult<bool>.Success(true);
+    }
+
+    public async Task<MatchResult<bool>> DeleteAsync(
+        int matchId,
+        bool deleteBets,
+        CancellationToken cancellationToken = default)
+    {
+        var match = await matchAdminRepository.FindMatchForDeletionAsync(matchId, cancellationToken);
+        if (match is null)
+        {
+            return MatchResult<bool>.Failure(
+                MatchResultErrorCode.MatchNotFound,
+                "Match was not found.");
+        }
+
+        if (match.Bets.Count > 0)
+        {
+            if (!deleteBets)
+            {
+                return MatchResult<bool>.Failure(
+                    MatchResultErrorCode.MatchHasBets,
+                    "Match has related bets. Confirm bet deletion to remove this match.");
+            }
+
+            await matchAdminRepository.DeleteBetsAsync(match.Bets, cancellationToken);
+        }
+
+        await matchAdminRepository.DeleteAsync(match, cancellationToken);
+        await matchAdminRepository.SaveChangesAsync(cancellationToken);
+
+        return MatchResult<bool>.Success(true);
     }
 
     private static TeamSummaryResponse mapTeam(Team team)

@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AdminPage } from './AdminPage'
+import { ApiError } from '../../../api/httpClient'
 import type { MatchListItem } from '../../../types/matches'
 import type { Team } from '../../../types/teams'
 import {
@@ -13,8 +14,10 @@ import {
   useAdminMatches,
   useAdminTeams,
   useCreateMatchMutation,
+  useDeleteMatchMutation,
   useImportBrasileiraoTeamsMutation,
   useImportWorldCupTeamsMutation,
+  useUpdateMatchBettingLockMutation,
   useUpdateMatchResultMutation,
 } from '../hooks/useAdminMatches'
 
@@ -26,6 +29,8 @@ vi.mock('../hooks/useAdminMatches', async () => {
     useAdminTeams: vi.fn(),
     useAdminMatches: vi.fn(),
     useCreateMatchMutation: vi.fn(),
+    useDeleteMatchMutation: vi.fn(),
+    useUpdateMatchBettingLockMutation: vi.fn(),
     useUpdateMatchResultMutation: vi.fn(),
     useImportBrasileiraoTeamsMutation: vi.fn(),
     useImportWorldCupTeamsMutation: vi.fn(),
@@ -37,8 +42,10 @@ const mockedUseClearApplicationDataMutation = vi.mocked(useClearApplicationDataM
 const mockedUseAdminTeams = vi.mocked(useAdminTeams)
 const mockedUseAdminMatches = vi.mocked(useAdminMatches)
 const mockedUseCreateMatchMutation = vi.mocked(useCreateMatchMutation)
+const mockedUseDeleteMatchMutation = vi.mocked(useDeleteMatchMutation)
 const mockedUseImportBrasileiraoTeamsMutation = vi.mocked(useImportBrasileiraoTeamsMutation)
 const mockedUseImportWorldCupTeamsMutation = vi.mocked(useImportWorldCupTeamsMutation)
+const mockedUseUpdateMatchBettingLockMutation = vi.mocked(useUpdateMatchBettingLockMutation)
 const mockedUseUpdateMatchResultMutation = vi.mocked(useUpdateMatchResultMutation)
 
 const teams: Team[] = [
@@ -56,6 +63,7 @@ const match: MatchListItem = {
   homeGoals: null,
   awayGoals: null,
   isBettingOpen: true,
+  isBettingLocked: false,
 }
 
 function renderWithProviders(children: ReactNode) {
@@ -76,8 +84,10 @@ function renderWithProviders(children: ReactNode) {
 describe('AdminPage', () => {
   const clearApplicationData = vi.fn()
   const createMatch = vi.fn()
+  const deleteMatch = vi.fn()
   const importBrasileiraoTeams = vi.fn()
   const importWorldCupTeams = vi.fn()
+  const updateBettingLock = vi.fn()
   const updateResult = vi.fn()
 
   afterEach(() => {
@@ -87,8 +97,10 @@ describe('AdminPage', () => {
   beforeEach(() => {
     clearApplicationData.mockReset()
     createMatch.mockReset()
+    deleteMatch.mockReset()
     importBrasileiraoTeams.mockReset()
     importWorldCupTeams.mockReset()
+    updateBettingLock.mockReset()
     updateResult.mockReset()
 
     mockedUseAdminTeams.mockReturnValue({
@@ -106,6 +118,14 @@ describe('AdminPage', () => {
       isPending: false,
       mutateAsync: createMatch,
     } as unknown as ReturnType<typeof useCreateMatchMutation>)
+    mockedUseDeleteMatchMutation.mockReturnValue({
+      isPending: false,
+      mutateAsync: deleteMatch,
+    } as unknown as ReturnType<typeof useDeleteMatchMutation>)
+    mockedUseUpdateMatchBettingLockMutation.mockReturnValue({
+      isPending: false,
+      mutateAsync: updateBettingLock,
+    } as unknown as ReturnType<typeof useUpdateMatchBettingLockMutation>)
     mockedUseUpdateMatchResultMutation.mockReturnValue({
       isPending: false,
       mutateAsync: updateResult,
@@ -133,8 +153,12 @@ describe('AdminPage', () => {
     expect(screen.getByRole('button', { name: 'Inserir Copa 2026' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Limpar dados' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Cadastrar partida' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Atualizar resultado' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Gerenciar partidas' })).toBeInTheDocument()
     expect(screen.getByText('Brazil x Argentina')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Gerenciar usuarios' })).toHaveAttribute('href', '/admin/users')
+    expect(screen.getByRole('button', { name: 'Bloquear palpites' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Excluir se sem palpites' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Excluir com palpites' })).toBeInTheDocument()
   })
 
   it('imports brasileirao teams from admin maintenance', async () => {
@@ -234,5 +258,101 @@ describe('AdminPage', () => {
         },
       }),
     )
+  })
+
+  it('blocks betting after confirmation', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    updateBettingLock.mockResolvedValue({})
+
+    renderWithProviders(<AdminPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bloquear palpites' }))
+
+    await waitFor(() =>
+      expect(updateBettingLock).toHaveBeenCalledWith({
+        matchId: 10,
+        request: {
+          isBettingLocked: true,
+        },
+      }),
+    )
+    expect(screen.getByText('Palpites bloqueados para a partida.')).toBeInTheDocument()
+    confirmSpy.mockRestore()
+  })
+
+  it('unblocks betting when match is manually locked', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    updateBettingLock.mockResolvedValue({})
+    mockedUseAdminMatches.mockReturnValue({
+      data: [{ ...match, isBettingOpen: false, isBettingLocked: true }],
+      isError: false,
+      isPending: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useAdminMatches>)
+
+    renderWithProviders(<AdminPage />)
+
+    expect(screen.getByText('Palpites bloqueados manualmente')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Desbloquear palpites' }))
+
+    await waitFor(() =>
+      expect(updateBettingLock).toHaveBeenCalledWith({
+        matchId: 10,
+        request: {
+          isBettingLocked: false,
+        },
+      }),
+    )
+    expect(screen.getByText('Bloqueio manual removido.')).toBeInTheDocument()
+    confirmSpy.mockRestore()
+  })
+
+  it('does not delete match when confirmation is cancelled', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    renderWithProviders(<AdminPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir se sem palpites' }))
+
+    expect(deleteMatch).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+
+  it('deletes a match safely after confirmation', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    deleteMatch.mockResolvedValue({})
+
+    renderWithProviders(<AdminPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir se sem palpites' }))
+
+    await waitFor(() => expect(deleteMatch).toHaveBeenCalledWith({ matchId: 10, deleteBets: false }))
+    expect(screen.getByText('Partida excluida.')).toBeInTheDocument()
+    confirmSpy.mockRestore()
+  })
+
+  it('deletes a match with related bets after confirmation', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    deleteMatch.mockResolvedValue({})
+
+    renderWithProviders(<AdminPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir com palpites' }))
+
+    await waitFor(() => expect(deleteMatch).toHaveBeenCalledWith({ matchId: 10, deleteBets: true }))
+    expect(screen.getByText('Partida excluida.')).toBeInTheDocument()
+    confirmSpy.mockRestore()
+  })
+
+  it('shows a specific message when safe delete finds related bets', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    deleteMatch.mockRejectedValue(new ApiError(409, { title: 'Match has related bets.' }))
+
+    renderWithProviders(<AdminPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir se sem palpites' }))
+
+    expect(await screen.findByText('Esta partida tem palpites. Use "Excluir com palpites" para remover tudo.')).toBeInTheDocument()
+    confirmSpy.mockRestore()
   })
 })

@@ -56,6 +56,36 @@ public static class MatchesEndpoints
                 : mapResultFailure(httpContext, result.ErrorCode, result.ErrorMessage);
         });
 
+        // DELETE /matches/{id} - permite ao admin excluir uma partida cadastrada.
+        group.MapDelete("/{id:int}", [Authorize(Policy = "AdminOnly")] async (
+            int id,
+            bool? deleteBets,
+            MatchAdminService matchAdminService,
+            HttpContext httpContext,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await matchAdminService.DeleteAsync(id, deleteBets == true, cancellationToken);
+
+            return result.Succeeded
+                ? Results.NoContent()
+                : mapResultFailure(httpContext, result.ErrorCode, result.ErrorMessage);
+        });
+
+        // PUT /matches/{id}/betting-lock - bloqueia ou desbloqueia manualmente os palpites de uma partida.
+        group.MapPut("/{id:int}/betting-lock", [Authorize(Policy = "AdminOnly")] async (
+            int id,
+            UpdateMatchBettingLockRequest request,
+            MatchAdminService matchAdminService,
+            HttpContext httpContext,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await matchAdminService.UpdateBettingLockAsync(id, request, cancellationToken);
+
+            return result.Succeeded
+                ? Results.NoContent()
+                : mapResultFailure(httpContext, result.ErrorCode, result.ErrorMessage);
+        });
+
         // PUT /matches/{id}/result - permite ao admin atualizar o resultado de uma partida.
         group.MapPut("/{id:int}/result", [Authorize(Policy = "AdminOnly")] async (
             int id,
@@ -159,6 +189,11 @@ public static class MatchesEndpoints
                 httpContext,
                 StatusCodes.Status409Conflict,
                 "Match already exists.",
+                detail),
+            MatchResultErrorCode.MatchHasBets => ApiProblemDetailsFactory.CreateProblem(
+                httpContext,
+                StatusCodes.Status409Conflict,
+                "Match has related bets.",
                 detail),
             _ => ApiProblemDetailsFactory.CreateProblem(
                 httpContext,

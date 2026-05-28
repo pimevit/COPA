@@ -11,4 +11,5 @@ public sealed record MatchReadModel(
     MatchStatus Status,
     int? HomeGoals,
     int? AwayGoals,
-    DateTime AllowBetUntil);
+    DateTime AllowBetUntil,
+    bool IsBettingLocked);
