@@ -7,6 +7,7 @@ import { AdminUsersPage } from '../features/admin/pages/AdminUsersPage'
 import { MatchesPage } from '../features/matches/pages/MatchesPage'
 import { RankingPage } from '../features/ranking/pages/RankingPage'
 import { RulesPage } from '../features/rules/pages/RulesPage'
+import { UserSettingsPage } from '../features/user/pages/UserSettingsPage'
 import { AdminRoute } from '../routes/AdminRoute'
 import { PlaceholderPage } from '../routes/PlaceholderPage'
 import { ProtectedRoute } from '../routes/ProtectedRoute'
@@ -53,6 +54,10 @@ export const router = createBrowserRouter([
       {
         path: '/rules',
         element: <RulesPage />,
+      },
+      {
+        path: '/usuario',
+        element: <UserSettingsPage />,
       },
     ],
   },

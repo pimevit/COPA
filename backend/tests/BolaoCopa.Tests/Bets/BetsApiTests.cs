@@ -206,7 +206,7 @@ public sealed class BetsApiTests
 
         var updateResponse = await client.PutAsJsonAsync("/bets/visibility", new
         {
-            showBetsPublicly = true
+            showBetsPublicly = false
         });
         using var updateDocument = JsonDocument.Parse(await updateResponse.Content.ReadAsStringAsync());
 
@@ -214,11 +214,11 @@ public sealed class BetsApiTests
         using var persistedDocument = JsonDocument.Parse(await persistedResponse.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.OK, initialResponse.StatusCode);
-        Assert.False(initialDocument.RootElement.GetProperty("showBetsPublicly").GetBoolean());
+        Assert.True(initialDocument.RootElement.GetProperty("showBetsPublicly").GetBoolean());
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
-        Assert.True(updateDocument.RootElement.GetProperty("showBetsPublicly").GetBoolean());
+        Assert.False(updateDocument.RootElement.GetProperty("showBetsPublicly").GetBoolean());
         Assert.Equal(HttpStatusCode.OK, persistedResponse.StatusCode);
-        Assert.True(persistedDocument.RootElement.GetProperty("showBetsPublicly").GetBoolean());
+        Assert.False(persistedDocument.RootElement.GetProperty("showBetsPublicly").GetBoolean());
     }
 
     [Fact]
@@ -227,6 +227,7 @@ public sealed class BetsApiTests
         using var factory = new BetsApiFactory();
         var client = factory.CreateClient();
         await authenticateAsync(client, "user1@example.com");
+        await updateVisibilityAsync(client, showBetsPublicly: false);
 
         var response = await client.GetAsync("/bets/public");
 
@@ -252,14 +253,13 @@ public sealed class BetsApiTests
         using var factory = new BetsApiFactory();
         var client = factory.CreateClient();
         await authenticateAsync(client, "user1@example.com");
-        await updateVisibilityAsync(client, showBetsPublicly: true);
         await createBetAsync(client, matchId: 1);
 
         await authenticateAsync(client, "user2@example.com");
+        await updateVisibilityAsync(client, showBetsPublicly: false);
         await createBetAsync(client, matchId: 1);
 
         await authenticateAsync(client, "user3@example.com");
-        await updateVisibilityAsync(client, showBetsPublicly: true);
         await createBetAsync(client, matchId: 1);
 
         await authenticateAsync(client, "user1@example.com");

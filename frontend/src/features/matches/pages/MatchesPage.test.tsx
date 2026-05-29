@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -12,7 +12,6 @@ import {
   useBetVisibility,
   useMyBets,
   usePublicBets,
-  useUpdateBetVisibilityMutation,
 } from '../../bets/hooks/useBets'
 import { useMatches } from '../hooks/useMatches'
 
@@ -28,7 +27,6 @@ vi.mock('../../bets/hooks/useBets', async () => {
     useBetVisibility: vi.fn(),
     useMyBets: vi.fn(),
     usePublicBets: vi.fn(),
-    useUpdateBetVisibilityMutation: vi.fn(),
   }
 })
 
@@ -36,7 +34,6 @@ const mockedUseMatches = vi.mocked(useMatches)
 const mockedUseBetVisibility = vi.mocked(useBetVisibility)
 const mockedUseMyBets = vi.mocked(useMyBets)
 const mockedUsePublicBets = vi.mocked(usePublicBets)
-const mockedUseUpdateBetVisibilityMutation = vi.mocked(useUpdateBetVisibilityMutation)
 
 const baseMatch: MatchListItem = {
   id: 1,
@@ -115,7 +112,7 @@ function mockMyBetsState(overrides: Partial<ReturnType<typeof useMyBets>>) {
 
 function mockBetVisibilityState(overrides: Partial<ReturnType<typeof useBetVisibility>>) {
   mockedUseBetVisibility.mockReturnValue({
-    data: { showBetsPublicly: false },
+    data: { showBetsPublicly: true },
     error: null,
     isError: false,
     isPending: false,
@@ -133,15 +130,6 @@ function mockPublicBetsState(overrides: Partial<ReturnType<typeof usePublicBets>
     refetch: vi.fn(),
     ...overrides,
   } as ReturnType<typeof usePublicBets>)
-}
-
-function mockUpdateVisibilityState(overrides: Partial<ReturnType<typeof useUpdateBetVisibilityMutation>>) {
-  mockedUseUpdateBetVisibilityMutation.mockReturnValue({
-    error: null,
-    isPending: false,
-    mutateAsync: vi.fn().mockResolvedValue({ showBetsPublicly: true }),
-    ...overrides,
-  } as unknown as ReturnType<typeof useUpdateBetVisibilityMutation>)
 }
 
 function renderWithQueryClient(children: ReactNode) {
@@ -170,11 +158,9 @@ describe('MatchesPage', () => {
     mockedUseBetVisibility.mockReset()
     mockedUseMyBets.mockReset()
     mockedUsePublicBets.mockReset()
-    mockedUseUpdateBetVisibilityMutation.mockReset()
     mockBetVisibilityState({})
     mockMyBetsState({})
     mockPublicBetsState({})
-    mockUpdateVisibilityState({})
   })
 
   it('renders loading state', () => {
@@ -230,12 +216,13 @@ describe('MatchesPage', () => {
     expect(listItems[1]).toHaveTextContent('Janela fechada')
   })
 
-  it('renders the visibility control and blocks public bets when hidden', () => {
+  it('blocks public bets when user privacy is hidden', () => {
     mockMatchesState({ data: [baseMatch] })
+    mockBetVisibilityState({ data: { showBetsPublicly: false } })
 
     renderWithQueryClient(<MatchesPage />)
 
-    expect(screen.getByRole('checkbox', { name: 'Publico' })).not.toBeChecked()
+    expect(screen.queryByRole('checkbox', { name: 'Publico' })).not.toBeInTheDocument()
     expect(screen.getByText('Seus palpites estao ocultos. A lista dos jogadores tambem fica bloqueada.')).toBeInTheDocument()
     expect(mockedUsePublicBets).toHaveBeenCalledWith(false)
   })
@@ -247,24 +234,9 @@ describe('MatchesPage', () => {
 
     renderWithQueryClient(<MatchesPage />)
 
-    expect(screen.getByRole('checkbox', { name: 'Publico' })).toBeChecked()
     expect(screen.getByText('Palpites dos jogadores')).toBeInTheDocument()
     expect(screen.getByText('Ana')).toBeInTheDocument()
     expect(screen.getByText('1 x 0')).toBeInTheDocument()
     expect(mockedUsePublicBets).toHaveBeenCalledWith(true)
-  })
-
-  it('updates visibility from the control', async () => {
-    const mutateAsync = vi.fn().mockResolvedValue({ showBetsPublicly: true })
-    mockMatchesState({ data: [baseMatch] })
-    mockUpdateVisibilityState({ mutateAsync } as Partial<ReturnType<typeof useUpdateBetVisibilityMutation>>)
-
-    renderWithQueryClient(<MatchesPage />)
-
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Publico' }))
-
-    await waitFor(() => {
-      expect(mutateAsync).toHaveBeenCalledWith({ showBetsPublicly: true })
-    })
   })
 })

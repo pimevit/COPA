@@ -50,7 +50,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             .IsRequired();
 
         entity.Property(user => user.ShowBetsPublicly)
-            .HasDefaultValue(false)
+            .HasDefaultValue(true)
             .IsRequired();
 
         configureUtcDate(entity.Property(user => user.CreatedAt));

@@ -7,7 +7,7 @@
 
 ## 1. Resumo do projeto
 
-Aplicação web de bolão da Copa do Mundo. O usuário se cadastra, faz palpites de placar nas partidas, e acumula pontos conforme a precisão do palpite. Há um ranking global em tempo real, multiplicador de pontos por fase do torneio, regras de fechamento de palpites por horário, visibilidade controlada (palpites ocultos antes do jogo e públicos depois) e estatísticas individuais.
+Aplicação web de bolão da Copa do Mundo. O usuário se cadastra, faz palpites de placar nas partidas, e acumula pontos conforme a precisão do palpite. Há um ranking global em tempo real, multiplicador de pontos por fase do torneio, regras de fechamento de palpites por horário, visibilidade controlada por preferência do usuário e estatísticas individuais.
 
 Stack-alvo: backend **ASP.NET Core Web API + EF Core + JWT**, frontend **React + Vite + TypeScript + Tailwind**, banco **SQL Server**, deploy em **Azure free tier**. Prioridade explícita: simplicidade, baixo custo, sem overengineering, com espaço para evolução futura.
 
@@ -24,7 +24,7 @@ Stack-alvo: backend **ASP.NET Core Web API + EF Core + JWT**, frontend **React +
 - **Pontuação**: cálculo automático conforme regra de placar (ver 2.3).
 - **Multiplicador por fase**: aplicado sobre a pontuação base.
 - **Ranking global**: ordenação por pontos, com Top 3 e usuário logado em destaque, atualização automática.
-- **Visibilidade de palpites**: jogadores ficam ocultos por padrão; quem torna seus palpites públicos pode ver imediatamente palpites de outros jogadores públicos.
+- **Visibilidade de palpites**: jogadores ficam visíveis por padrão; quem oculta seus palpites deixa de aparecer e também deixa de ver palpites públicos.
 - **Estatísticas do usuário**: total de pontos, nº de placares exatos, nº de acertos de vencedor, percentual de acertos, melhor sequência de acertos, histórico de palpites.
 - **Desempate de ranking**: critérios em cascata (ver 2.3).
 
@@ -521,7 +521,7 @@ O resultado são 18 tarefas em 4 blocos: Fundação (T01–T03), Backend (T04–
 **Escopo:**
 - Formulário de palpite por partida, habilitado apenas com `isBettingOpen`.
 - Criar/editar via `POST /bets` / `PUT /bets/{id}` e listar histórico via `GET /bets/me`.
-- Aplicar regra de visibilidade recíproca: oculto por padrão; quem está oculto não aparece e também não vê terceiros; quem está público vê imediatamente palpites de jogadores públicos.
+- Aplicar regra de visibilidade recíproca: visível por padrão; quem está oculto não aparece e também não vê terceiros; quem está público vê imediatamente palpites de jogadores públicos.
 
 **Fora do escopo:** Cálculo de pontos (já no backend), ranking.
 
@@ -531,7 +531,7 @@ O resultado são 18 tarefas em 4 blocos: Fundação (T01–T03), Backend (T04–
 - Palpites de terceiros respeitam a regra de privacidade recíproca.
 
 **Prompt sugerido para IA:**
-> Implemente o fluxo de palpites: um formulário por partida (gols casa/fora) habilitado só quando `isBettingOpen`, integrando `POST /bets` e `PUT /bets/{id}`. Exiba o histórico do usuário via `GET /bets/me`. Trate erros de janela fechada vindos da API. Aplique a regra de visibilidade recíproca: oculto por padrão; quem está oculto não aparece e não vê terceiros; quem está público vê imediatamente palpites de jogadores públicos. Use TanStack Query com invalidação de cache após salvar.
+> Implemente o fluxo de palpites: um formulário por partida (gols casa/fora) habilitado só quando `isBettingOpen`, integrando `POST /bets` e `PUT /bets/{id}`. Exiba o histórico do usuário via `GET /bets/me`. Trate erros de janela fechada vindos da API. Aplique a regra de visibilidade recíproca: visível por padrão; quem está oculto não aparece e não vê terceiros; quem está público vê imediatamente palpites de jogadores públicos. Use TanStack Query com invalidação de cache após salvar.
 
 ---
 

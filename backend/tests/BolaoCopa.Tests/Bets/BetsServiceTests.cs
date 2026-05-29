@@ -127,31 +127,31 @@ public sealed class BetsServiceTests
     }
 
     [Fact]
-    public async Task GetVisibilityAsync_WhenUserIsNew_ReturnsHiddenByDefault()
+    public async Task GetVisibilityAsync_WhenUserIsNew_ReturnsVisibleByDefault()
     {
         var repository = new FakeBetRepository();
-        repository.AddUser(createUser(10, showBetsPublicly: false));
+        repository.AddUser(createUser(10));
         var service = createService(repository);
 
         var result = await service.GetVisibilityAsync(10);
 
         Assert.True(result.Succeeded);
-        Assert.False(result.Value!.ShowBetsPublicly);
+        Assert.True(result.Value!.ShowBetsPublicly);
     }
 
     [Fact]
-    public async Task UpdateVisibilityAsync_SavesPublicPreference()
+    public async Task UpdateVisibilityAsync_SavesPrivatePreference()
     {
         var repository = new FakeBetRepository();
-        var user = createUser(10, showBetsPublicly: false);
+        var user = createUser(10);
         repository.AddUser(user);
         var service = createService(repository);
 
-        var result = await service.UpdateVisibilityAsync(10, new UpdateBetVisibilityRequest(true));
+        var result = await service.UpdateVisibilityAsync(10, new UpdateBetVisibilityRequest(false));
 
         Assert.True(result.Succeeded);
-        Assert.True(result.Value!.ShowBetsPublicly);
-        Assert.True(user.ShowBetsPublicly);
+        Assert.False(result.Value!.ShowBetsPublicly);
+        Assert.False(user.ShowBetsPublicly);
     }
 
     [Fact]
@@ -238,7 +238,7 @@ public sealed class BetsServiceTests
 
     private static User createUser(
         int id,
-        bool showBetsPublicly,
+        bool showBetsPublicly = true,
         string? name = null)
     {
         return new User

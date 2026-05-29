@@ -271,7 +271,7 @@ Regras implementadas:
   logado.
 - `GET /bets/me` retorna apenas palpites do usuario autenticado, com dados da
   partida e das selecoes.
-- Usuarios ficam ocultos por padrao. Quem esta oculto nao aparece para outros
+- Usuarios ficam visiveis por padrao. Quem muda para oculto nao aparece para outros
   jogadores e tambem nao acessa `GET /bets/public`.
 - `GET /bets/public` retorna somente `matchId`, `userId`, `userName`, placar
   previsto, pontos, data de criacao e `isCurrentUser`; e-mail nao e exposto.
@@ -665,6 +665,8 @@ Estrutura principal:
   historico, controle de privacidade e lista de palpites dos jogadores.
 - `src/features/bets/utils`: helpers puros de indexacao por partida,
   create/update, validacao local e erro de API.
+- `src/features/user/pages/UserSettingsPage.tsx`: tela `/usuario` com
+  configuracao global de privacidade dos palpites.
 - `src/features/ranking/api/rankingApi.ts`: chamada tipada para `GET /ranking`.
 - `src/features/ranking/hooks/useRanking.ts`: hook TanStack Query com polling
   de 30 segundos.
@@ -780,7 +782,8 @@ Comportamento implementado:
 - erro de janela fechada da API (`422`) aparece no formulario e bloqueia nova
   tentativa local ate recarregar os dados;
 - o historico do usuario aparece na mesma tela, usando apenas `GET /bets/me`;
-- a tela exibe um controle global de privacidade; oculto e o padrao;
+- a configuracao `/usuario` exibe um controle global de privacidade; visivel e
+  o padrao;
 - jogadores ocultos nao veem palpites de terceiros e nao aparecem na lista;
 - jogadores publicos veem imediatamente os palpites de outros jogadores
   publicos, agrupados por partida;
@@ -826,15 +829,16 @@ Validar manualmente:
 5. Salve um palpite em partida com janela aberta.
 6. Edite o mesmo palpite e confirme que o historico atualiza.
 7. Tente uma partida com janela fechada e confirme o bloqueio visual.
-8. Deixe a privacidade como oculta e confirme que os palpites dos jogadores
+8. Acesse `/usuario`, deixe a privacidade como oculta e confirme que os palpites dos jogadores
    ficam bloqueados.
-9. Mude para publico e confirme que palpites publicos aparecem por partida.
+9. Volte para publico e confirme que palpites publicos aparecem por partida.
 
 Visibilidade de palpites de terceiros:
 
 - `GET /bets/public` e autenticado e bloqueia com `403` quando o usuario logado
   esta oculto;
-- a preferencia global fica em `GET/PUT /bets/visibility`;
+- a preferencia global fica em `GET/PUT /bets/visibility` e e alterada na tela
+  `/usuario`;
 - a visibilidade e imediata para jogadores publicos, sem depender do inicio da
   partida ou fechamento da janela;
 - a resposta publica nao expõe e-mail.
@@ -848,10 +852,11 @@ npm run build
 npm run dev
 ```
 
-Com a API local em `VITE_API_BASE_URL`, acesse `/app` ou `/matches` apos login.
+Com a API local em `VITE_API_BASE_URL`, acesse `/app`, `/matches` ou `/usuario`
+apos login.
 
-Fora da Tarefa 15: backend novo, calculo de pontos no frontend, ranking,
-estatisticas, calendario interativo, endpoint de terceiros e deploy.
+Fora da Tarefa 15: calculo de pontos no frontend, ranking, estatisticas,
+calendario interativo e deploy.
 
 ### Tela de ranking
 
