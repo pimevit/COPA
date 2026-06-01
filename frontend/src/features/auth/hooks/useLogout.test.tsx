@@ -3,12 +3,19 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useLogout } from './useLogout'
 import { AuthenticatedNav } from '../../../routes/AuthenticatedNav'
 import { ProtectedRoute } from '../../../routes/ProtectedRoute'
 import { authStorageKey, useAuthStore } from '../../../stores/authStore'
+import { logout } from '../api/authApi'
+
+vi.mock('../api/authApi', () => ({
+  logout: vi.fn(),
+}))
+
+const mockedLogout = vi.mocked(logout)
 
 const session = {
   accessToken: 'valid-token',
@@ -46,6 +53,8 @@ describe('logout flow', () => {
   })
 
   beforeEach(() => {
+    mockedLogout.mockReset()
+    mockedLogout.mockResolvedValue()
     useAuthStore.getState().clearSession()
     localStorage.clear()
   })
@@ -85,6 +94,7 @@ describe('logout flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sair' }))
 
     await waitFor(() => expect(screen.getByText('Login route')).toBeInTheDocument())
+    expect(mockedLogout).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState().token).toBeNull()
     expect(useAuthStore.getState().user).toBeNull()
     expect(useAuthStore.getState().expiresAtUtc).toBeNull()
@@ -134,6 +144,34 @@ describe('logout flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Logout helper' }))
 
     await waitFor(() => expect(screen.getByText('Login route')).toBeInTheDocument())
+    expect(mockedLogout).toHaveBeenCalledTimes(1)
+    expect(localStorage.getItem(authStorageKey)).toBeNull()
+  })
+
+  it('clears local session even when server logout fails', async () => {
+    mockedLogout.mockRejectedValue(new Error('network'))
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+
+    useAuthStore.getState().setSession(session)
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<LogoutButton />} path="/logout-test" />
+        <Route element={<div>Login route</div>} path="/login" />
+      </Routes>,
+      queryClient,
+      ['/logout-test'],
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Logout helper' }))
+
+    await waitFor(() => expect(screen.getByText('Login route')).toBeInTheDocument())
+    expect(useAuthStore.getState().token).toBeNull()
     expect(localStorage.getItem(authStorageKey)).toBeNull()
   })
 })

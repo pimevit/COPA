@@ -85,5 +85,7 @@ public sealed class OpenApiAndValidationTests : IClassFixture<WebApplicationFact
         Assert.Contains(origin, origins);
         Assert.True(response.Headers.TryGetValues("Access-Control-Allow-Methods", out var methods));
         Assert.Contains("POST", string.Join(",", methods));
+        Assert.True(response.Headers.TryGetValues("Access-Control-Allow-Credentials", out var credentials));
+        Assert.Contains("true", credentials);
     }
 }

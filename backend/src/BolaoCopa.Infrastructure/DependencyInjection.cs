@@ -1,4 +1,5 @@
 using BolaoCopa.Application.Admin.Users.Data;
+using BolaoCopa.Application.Authentication.RefreshTokens;
 using BolaoCopa.Application.Authentication.Security;
 using BolaoCopa.Application.Authentication.Users;
 using BolaoCopa.Application.Bets.Data;
@@ -30,6 +31,7 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
         services.AddScoped<AdminMaintenanceService>();
         services.AddScoped<IAdminUserRepository, EfAdminUserRepository>();
+        services.AddScoped<IRefreshTokenRepository, EfRefreshTokenRepository>();
         services.AddScoped<IUserAuthRepository, EfUserAuthRepository>();
         services.AddScoped<IBetRepository, EfBetRepository>();
         services.AddScoped<IMatchReadRepository, EfMatchReadRepository>();
@@ -39,6 +41,8 @@ public static class DependencyInjection
         services.AddScoped<IStatsReadRepository, EfStatsReadRepository>();
         services.AddScoped<ITeamReadRepository, EfTeamReadRepository>();
         services.AddSingleton<IPasswordHashService, PasswordHashService>();
+        services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
+        services.AddSingleton<IRefreshTokenLifetime, RefreshTokenLifetime>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
 
         return services;

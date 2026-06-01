@@ -1,5 +1,6 @@
 import { useAuthStore } from '../stores/authStore'
 import { getApiBaseUrl } from './env'
+import type { AuthSession } from '../types/auth'
 
 export type ProblemDetails = {
   type?: string
@@ -30,7 +31,10 @@ export class ApiError extends Error {
 type RequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   body?: unknown
   headers?: HeadersInit
+  skipAuthRefresh?: boolean
 }
+
+let refreshSessionPromise: Promise<boolean> | null = null
 
 async function parseResponseBody(response: Response): Promise<unknown> {
   const contentType = response.headers.get('content-type') ?? ''
@@ -76,17 +80,76 @@ function buildUrl(path: string): string {
   return `${baseUrl}${normalizedPath}`
 }
 
-export async function request<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
-  const response = await fetch(buildUrl(path), {
-    ...options,
+async function sendRequest(path: string, options: RequestOptions): Promise<Response> {
+  const { body, skipAuthRefresh, ...requestInit } = options
+  void skipAuthRefresh
+
+  return fetch(buildUrl(path), {
+    ...requestInit,
+    credentials: 'include',
     headers: buildHeaders(options),
     body:
-      options.body === undefined || options.body instanceof FormData
-        ? options.body
-        : JSON.stringify(options.body),
+      body === undefined || body instanceof FormData
+        ? body
+        : JSON.stringify(body),
   })
+}
 
-  const body = (await parseResponseBody(response)) as ApiErrorBody
+function shouldRefreshAuth(path: string, options: RequestOptions): boolean {
+  if (options.skipAuthRefresh || !useAuthStore.getState().token) {
+    return false
+  }
+
+  const normalizedPath = path.toLowerCase()
+
+  return !/\/auth\/(login|register|refresh|logout)(?:\?|$)/.test(normalizedPath)
+}
+
+async function refreshSession(): Promise<boolean> {
+  refreshSessionPromise ??= request<AuthSession>('/auth/refresh', {
+    method: 'POST',
+    skipAuthRefresh: true,
+  })
+    .then((session) => {
+      useAuthStore.getState().setSession(session)
+      return true
+    })
+    .catch(() => {
+      useAuthStore.getState().clearSession()
+      return false
+    })
+    .finally(() => {
+      refreshSessionPromise = null
+    })
+
+  return refreshSessionPromise
+}
+
+async function refreshExpiringSession(path: string, options: RequestOptions): Promise<void> {
+  if (!shouldRefreshAuth(path, options)) {
+    return
+  }
+
+  const expiresAtUtc = useAuthStore.getState().expiresAtUtc
+  const expiresAtMs = expiresAtUtc ? Date.parse(expiresAtUtc) : Number.NaN
+  if (!Number.isNaN(expiresAtMs) && expiresAtMs - Date.now() <= 60_000) {
+    await refreshSession()
+  }
+}
+
+export async function request<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
+  await refreshExpiringSession(path, options)
+
+  let response = await sendRequest(path, options)
+  let body = (await parseResponseBody(response)) as ApiErrorBody
+
+  if (response.status === 401 && shouldRefreshAuth(path, options)) {
+    const refreshed = await refreshSession()
+    if (refreshed) {
+      response = await sendRequest(path, options)
+      body = (await parseResponseBody(response)) as ApiErrorBody
+    }
+  }
 
   if (response.status === 401) {
     useAuthStore.getState().clearSession()

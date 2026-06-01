@@ -13,6 +13,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<Match> Matches => Set<Match>();
     public DbSet<Bet> Bets => Set<Bet>();
@@ -22,6 +23,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         base.OnModelCreating(modelBuilder);
 
         configureUser(modelBuilder);
+        configureRefreshToken(modelBuilder);
         configureTeam(modelBuilder);
         configureMatch(modelBuilder);
         configureBet(modelBuilder);
@@ -54,6 +56,36 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             .IsRequired();
 
         configureUtcDate(entity.Property(user => user.CreatedAt));
+    }
+
+    private static void configureRefreshToken(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<RefreshToken>();
+
+        entity.ToTable("RefreshTokens");
+        entity.HasKey(refreshToken => refreshToken.Id);
+
+        entity.HasOne(refreshToken => refreshToken.User)
+            .WithMany(user => user.RefreshTokens)
+            .HasForeignKey(refreshToken => refreshToken.UserId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+
+        entity.Property(refreshToken => refreshToken.TokenHash)
+            .HasMaxLength(128)
+            .IsRequired();
+
+        entity.HasIndex(refreshToken => refreshToken.TokenHash)
+            .IsUnique();
+
+        entity.HasIndex(refreshToken => refreshToken.UserId);
+
+        configureUtcDate(entity.Property(refreshToken => refreshToken.CreatedAtUtc));
+        configureUtcDate(entity.Property(refreshToken => refreshToken.ExpiresAtUtc));
+
+        entity.Property(refreshToken => refreshToken.RevokedAtUtc)
+            .HasColumnType("datetime2")
+            .IsRequired(false);
     }
 
     private static void configureTeam(ModelBuilder modelBuilder)

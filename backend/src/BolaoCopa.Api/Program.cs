@@ -8,6 +8,7 @@ using BolaoCopa.Api.Validation;
 using BolaoCopa.Application.Admin.Users;
 using BolaoCopa.Application.Authentication;
 using BolaoCopa.Application.Authentication.Contracts;
+using BolaoCopa.Application.Authentication.RefreshTokens;
 using BolaoCopa.Application.Authentication.Security;
 using BolaoCopa.Application.Bets;
 using BolaoCopa.Application.Common.Time;
@@ -68,12 +69,14 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(allowedCorsOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.AddScoped<AdminUsersService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<RefreshTokenService>();
 builder.Services.AddScoped<BetsService>();
 builder.Services.AddScoped<MatchesService>();
 builder.Services.AddScoped<MatchAdminService>();

@@ -8,3 +8,7 @@ export function login(request: LoginRequest): Promise<LoginResponse> {
 export function register(request: RegisterRequest): Promise<RegisterResponse> {
   return apiClient.post<RegisterResponse>('/auth/register', request)
 }
+
+export function logout(): Promise<void> {
+  return apiClient.post<void>('/auth/logout')
+}
