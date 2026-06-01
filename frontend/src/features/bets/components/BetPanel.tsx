@@ -23,7 +23,8 @@ export function BetPanel({ existingBet, isHistoryLoading = false, match }: BetPa
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isClosedByApi, setIsClosedByApi] = useState(false)
   const isSaving = createBetMutation.isPending || updateBetMutation.isPending
-  const isDisabled = !match.isBettingOpen || isHistoryLoading || isClosedByApi
+  const isReadOnly = !match.isBettingOpen || isClosedByApi
+  const isDisabled = isHistoryLoading
 
   async function handleSubmit(request: UpdateBetRequest) {
     setLocalError(null)
@@ -56,6 +57,28 @@ export function BetPanel({ existingBet, isHistoryLoading = false, match }: BetPa
     }
   }
 
+  if (isReadOnly) {
+    return (
+      <section className="border-t border-slate-100 pt-4 dark:border-slate-800" aria-label="Palpite da partida">
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900">
+          {existingBet ? (
+            <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">
+              Seu palpite: {existingBet.homeGoalsPrediction} x {existingBet.awayGoalsPrediction}
+            </p>
+          ) : (
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Você não registrou palpite para esta partida.
+            </p>
+          )}
+          <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Palpites encerrados</p>
+          {localError ? (
+            <p className="mt-2 text-xs font-medium text-red-700 dark:text-red-300">{localError}</p>
+          ) : null}
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section className="border-t border-slate-100 pt-4 dark:border-slate-800" aria-label="Palpite da partida">
       <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -71,12 +94,6 @@ export function BetPanel({ existingBet, isHistoryLoading = false, match }: BetPa
           </span>
         ) : null}
       </div>
-
-      {!match.isBettingOpen || isClosedByApi ? (
-        <p className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-          Janela de palpites fechada. A API tambem valida este bloqueio.
-        </p>
-      ) : null}
 
       {isHistoryLoading ? (
         <p className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">

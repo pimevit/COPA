@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -86,6 +86,43 @@ const basePublicBet: PublicBet = {
   pointsEarned: 0,
   createdAt: '2026-06-10T12:00:00Z',
   isCurrentUser: false,
+}
+
+function buildMatch(overrides: Partial<MatchListItem> = {}): MatchListItem {
+  const id = overrides.id ?? baseMatch.id
+
+  return {
+    ...baseMatch,
+    id,
+    homeTeam: { id: id * 10, name: `Home ${id}`, code: `H${id}`, flagUrl: null },
+    awayTeam: { id: id * 10 + 1, name: `Away ${id}`, code: `A${id}`, flagUrl: null },
+    ...overrides,
+  }
+}
+
+function buildBet(match: MatchListItem, overrides: Partial<MyBet> = {}): MyBet {
+  return {
+    ...baseBet,
+    matchId: match.id,
+    match: {
+      id: match.id,
+      homeTeam: match.homeTeam,
+      awayTeam: match.awayTeam,
+      matchDate: match.matchDate,
+      stage: match.stage,
+      status: match.status,
+      homeGoals: match.homeGoals,
+      awayGoals: match.awayGoals,
+    },
+    ...overrides,
+  }
+}
+
+function buildPublicBet(overrides: Partial<PublicBet> = {}): PublicBet {
+  return {
+    ...basePublicBet,
+    ...overrides,
+  }
 }
 
 function mockMatchesState(overrides: Partial<ReturnType<typeof useMatches>>) {
@@ -216,6 +253,100 @@ describe('MatchesPage', () => {
     expect(listItems[1]).toHaveTextContent('Janela fechada')
   })
 
+  it('shows pending count and orders active pending matches first', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-11T12:00:00-03:00'))
+
+    const withBet = buildMatch({
+      id: 1,
+      homeTeam: { id: 10, name: 'Com palpite', code: 'CMP', flagUrl: null },
+      matchDate: '2026-06-11T19:00:00Z',
+    })
+    const withoutBet = buildMatch({
+      id: 2,
+      homeTeam: { id: 20, name: 'Sem palpite', code: 'SEM', flagUrl: null },
+      matchDate: '2026-06-12T19:00:00Z',
+    })
+
+    mockMatchesState({ data: [withBet, withoutBet] })
+    mockMyBetsState({ data: [buildBet(withBet)] })
+
+    renderWithQueryClient(<MatchesPage />)
+
+    expect(screen.getByText('Falta 1 jogo para voce palpitar.')).toBeInTheDocument()
+
+    const matchList = screen.getByRole('list', { name: 'Lista de partidas' })
+    const listItems = within(matchList).getAllByRole('listitem')
+
+    expect(listItems[0]).toHaveTextContent('Sem palpite')
+    expect(listItems[0]).toHaveTextContent('Falta seu palpite')
+    expect(listItems[1]).toHaveTextContent('Com palpite')
+  })
+
+  it('shows a positive message when there are no pending open bets', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-11T12:00:00-03:00'))
+
+    mockMatchesState({ data: [baseMatch] })
+    mockMyBetsState({ data: [baseBet] })
+
+    renderWithQueryClient(<MatchesPage />)
+
+    expect(screen.getByText('Voce ja fez todos os palpites disponiveis.')).toBeInTheDocument()
+  })
+
+  it('moves matches older than five hours to closed games tab', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-12T00:00:00Z'))
+
+    const closedMatch = buildMatch({
+      id: 1,
+      homeTeam: { id: 10, name: 'Jogo encerrado', code: 'JEN', flagUrl: null },
+      matchDate: '2026-06-11T19:00:00Z',
+    })
+    const activeMatch = buildMatch({
+      id: 2,
+      homeTeam: { id: 20, name: 'Jogo ativo', code: 'JAT', flagUrl: null },
+      matchDate: '2026-06-12T19:00:00Z',
+    })
+
+    mockMatchesState({ data: [closedMatch, activeMatch] })
+
+    renderWithQueryClient(<MatchesPage />)
+
+    expect(screen.getByRole('tab', { name: 'Jogos (1)' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('Jogo ativo')).toBeInTheDocument()
+    expect(screen.queryByText('Jogo encerrado')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Jogos encerrados (1)' }))
+
+    expect(screen.getByText('Jogo encerrado')).toBeInTheDocument()
+    expect(screen.queryByText('Jogo ativo')).not.toBeInTheDocument()
+  })
+
+  it('renders a read-only bet summary for a closed betting window with an existing bet', () => {
+    const closedMatch = buildMatch({ isBettingOpen: false })
+
+    mockMatchesState({ data: [closedMatch] })
+    mockMyBetsState({ data: [buildBet(closedMatch, { homeGoalsPrediction: 1, awayGoalsPrediction: 1 })] })
+
+    renderWithQueryClient(<MatchesPage />)
+
+    expect(screen.getByText('Seu palpite: 1 x 1')).toBeInTheDocument()
+    expect(screen.getByText('Palpites encerrados')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Atualizar palpite' })).not.toBeInTheDocument()
+  })
+
+  it('renders a read-only empty bet state for a closed betting window without a bet', () => {
+    mockMatchesState({ data: [buildMatch({ isBettingOpen: false })] })
+
+    renderWithQueryClient(<MatchesPage />)
+
+    expect(screen.getByText('Você não registrou palpite para esta partida.')).toBeInTheDocument()
+    expect(screen.getByText('Palpites encerrados')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Salvar palpite' })).not.toBeInTheDocument()
+  })
+
   it('blocks public bets when user privacy is hidden', () => {
     mockMatchesState({ data: [baseMatch] })
     mockBetVisibilityState({ data: { showBetsPublicly: false } })
@@ -223,6 +354,8 @@ describe('MatchesPage', () => {
     renderWithQueryClient(<MatchesPage />)
 
     expect(screen.queryByRole('checkbox', { name: 'Publico' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver palpites' }))
+
     expect(screen.getByText('Seus palpites estao ocultos. A lista dos jogadores tambem fica bloqueada.')).toBeInTheDocument()
     expect(mockedUsePublicBets).toHaveBeenCalledWith(false)
   })
@@ -230,13 +363,32 @@ describe('MatchesPage', () => {
   it('renders public bets when visibility is public', () => {
     mockMatchesState({ data: [baseMatch] })
     mockBetVisibilityState({ data: { showBetsPublicly: true } })
-    mockPublicBetsState({ data: [basePublicBet] })
+    mockPublicBetsState({
+      data: Array.from({ length: 6 }, (_, index) =>
+        buildPublicBet({
+          userId: 40 + index,
+          userName: index === 0 ? 'Ana' : `Jogador ${index + 1}`,
+          homeGoalsPrediction: index === 0 ? 1 : index + 1,
+          awayGoalsPrediction: index === 0 ? 0 : index,
+        }),
+      ),
+    })
 
     renderWithQueryClient(<MatchesPage />)
 
     expect(screen.getByText('Palpites dos jogadores')).toBeInTheDocument()
+    expect(screen.queryByText('Ana')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ver 6 palpites' })).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver 6 palpites' }))
+
     expect(screen.getByText('Ana')).toBeInTheDocument()
     expect(screen.getByText('1 x 0')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ocultar palpites' })).toHaveAttribute('aria-expanded', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar palpites' }))
+
+    expect(screen.queryByText('Ana')).not.toBeInTheDocument()
     expect(mockedUsePublicBets).toHaveBeenCalledWith(true)
   })
 })
