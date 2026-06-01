@@ -10,7 +10,6 @@ public sealed class EfUserAuthRepository(AppDbContext dbContext) : IUserAuthRepo
     public Task<User?> FindByEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default)
     {
         return dbContext.Users
-            .AsNoTracking()
             .SingleOrDefaultAsync(user => user.Email == normalizedEmail, cancellationToken);
     }
 
@@ -18,5 +17,10 @@ public sealed class EfUserAuthRepository(AppDbContext dbContext) : IUserAuthRepo
     {
         dbContext.Users.Add(user);
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return dbContext.SaveChangesAsync(cancellationToken);
     }
 }

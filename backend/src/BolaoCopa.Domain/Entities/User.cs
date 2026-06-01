@@ -8,6 +8,7 @@ public sealed class User
     public string PasswordHash { get; set; } = string.Empty;
     public bool ShowBetsPublicly { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastLoginAtUtc { get; set; }
 
     public ICollection<Bet> Bets { get; set; } = new List<Bet>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();

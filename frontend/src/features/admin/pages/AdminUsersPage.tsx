@@ -114,6 +114,9 @@ export function AdminUsersPage() {
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-slate-950 dark:text-slate-50">{user.name}</p>
                     <p className="truncate text-sm text-slate-600 dark:text-slate-300">{user.email}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Último login: {formatLastLogin(user.lastLoginAtUtc)}
+                    </p>
                   </div>
                   <button
                     className="h-10 rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400 dark:focus:ring-offset-slate-950"
@@ -131,6 +134,17 @@ export function AdminUsersPage() {
       </section>
     </main>
   )
+}
+
+function formatLastLogin(value?: string | null): string {
+  if (!value) {
+    return 'Sem registro'
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(value))
 }
 
 function FeedbackMessage({ message, tone }: { message: string; tone: 'error' | 'success' }) {

@@ -9,6 +9,7 @@ import { AdminPage } from './AdminPage'
 import { ApiError } from '../../../api/httpClient'
 import type { MatchListItem } from '../../../types/matches'
 import type { Team } from '../../../types/teams'
+import { useMatchNotice, useUpdateMatchNoticeMutation } from '../../notices/hooks/useMatchNotice'
 import {
   useClearApplicationDataMutation,
   useAdminMatches,
@@ -38,7 +39,21 @@ vi.mock('../hooks/useAdminMatches', async () => {
   }
 })
 
+vi.mock('../../notices/hooks/useMatchNotice', async () => {
+  const actual = await vi.importActual<typeof import('../../notices/hooks/useMatchNotice')>(
+    '../../notices/hooks/useMatchNotice',
+  )
+
+  return {
+    ...actual,
+    useMatchNotice: vi.fn(),
+    useUpdateMatchNoticeMutation: vi.fn(),
+  }
+})
+
 const mockedUseClearApplicationDataMutation = vi.mocked(useClearApplicationDataMutation)
+const mockedUseMatchNotice = vi.mocked(useMatchNotice)
+const mockedUseUpdateMatchNoticeMutation = vi.mocked(useUpdateMatchNoticeMutation)
 const mockedUseAdminTeams = vi.mocked(useAdminTeams)
 const mockedUseAdminMatches = vi.mocked(useAdminMatches)
 const mockedUseCreateMatchMutation = vi.mocked(useCreateMatchMutation)
@@ -87,6 +102,7 @@ describe('AdminPage', () => {
   const deleteMatch = vi.fn()
   const importBrasileiraoTeams = vi.fn()
   const importWorldCupTeams = vi.fn()
+  const updateMatchNotice = vi.fn()
   const updateBettingLock = vi.fn()
   const updateResult = vi.fn()
 
@@ -100,6 +116,7 @@ describe('AdminPage', () => {
     deleteMatch.mockReset()
     importBrasileiraoTeams.mockReset()
     importWorldCupTeams.mockReset()
+    updateMatchNotice.mockReset()
     updateBettingLock.mockReset()
     updateResult.mockReset()
 
@@ -114,6 +131,12 @@ describe('AdminPage', () => {
       isPending: false,
       refetch: vi.fn(),
     } as unknown as ReturnType<typeof useAdminMatches>)
+    mockedUseMatchNotice.mockReturnValue({
+      data: { message: '', updatedAtUtc: null },
+      isError: false,
+      isPending: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useMatchNotice>)
     mockedUseCreateMatchMutation.mockReturnValue({
       isPending: false,
       mutateAsync: createMatch,
@@ -142,12 +165,18 @@ describe('AdminPage', () => {
       isPending: false,
       mutateAsync: clearApplicationData,
     } as unknown as ReturnType<typeof useClearApplicationDataMutation>)
+    mockedUseUpdateMatchNoticeMutation.mockReturnValue({
+      isPending: false,
+      mutateAsync: updateMatchNotice,
+    } as unknown as ReturnType<typeof useUpdateMatchNoticeMutation>)
   })
 
   it('renders admin create and result forms', () => {
     renderWithProviders(<AdminPage />)
 
     expect(screen.getByRole('heading', { name: 'Painel administrativo' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Recado das partidas' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Recado exibido nas partidas' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Manutencao de dados' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Inserir Brasileirao Serie A 2026' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Inserir Copa 2026' })).toBeInTheDocument()
@@ -159,6 +188,44 @@ describe('AdminPage', () => {
     expect(screen.getByRole('button', { name: 'Bloquear palpites' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Excluir se sem palpites' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Excluir com palpites' })).toBeInTheDocument()
+  })
+
+  it('saves the matches notice', async () => {
+    updateMatchNotice.mockResolvedValue({
+      message: 'Rodada aberta ate sexta.',
+      updatedAtUtc: '2026-06-01T12:00:00Z',
+    })
+
+    renderWithProviders(<AdminPage />)
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Recado exibido nas partidas' }), {
+      target: { value: 'Rodada aberta ate sexta.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar recado' }))
+
+    await waitFor(() => expect(updateMatchNotice).toHaveBeenCalledWith({ message: 'Rodada aberta ate sexta.' }))
+    expect(screen.getByText('Recado salvo.')).toBeInTheDocument()
+  })
+
+  it('clears the matches notice', async () => {
+    mockedUseMatchNotice.mockReturnValue({
+      data: { message: 'Aviso temporario', updatedAtUtc: '2026-06-01T12:00:00Z' },
+      isError: false,
+      isPending: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useMatchNotice>)
+    updateMatchNotice.mockResolvedValue({
+      message: '',
+      updatedAtUtc: null,
+    })
+
+    renderWithProviders(<AdminPage />)
+
+    expect(await screen.findByDisplayValue('Aviso temporario')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar recado' }))
+
+    await waitFor(() => expect(updateMatchNotice).toHaveBeenCalledWith({ message: '' }))
+    expect(screen.getByText('Recado removido.')).toBeInTheDocument()
   })
 
   it('imports brasileirao teams from admin maintenance', async () => {

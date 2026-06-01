@@ -33,6 +33,43 @@ public sealed class AuthApiTests
     }
 
     [Fact]
+    public async Task Login_WithValidCredentials_UpdatesLastLogin()
+    {
+        using var factory = new AuthApiFactory();
+        var client = createClientWithoutCookies(factory);
+        var oldLastLoginAtUtc = new DateTime(2026, 5, 1, 12, 0, 0, DateTimeKind.Utc);
+
+        await registerAsync(client);
+        await setLastLoginAsync(factory, "user@example.com", oldLastLoginAtUtc);
+        var response = await loginAsync(client);
+        var lastLoginAtUtc = await getLastLoginAsync(factory, "user@example.com");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(lastLoginAtUtc);
+        Assert.True(lastLoginAtUtc > oldLastLoginAtUtc);
+    }
+
+    [Fact]
+    public async Task Login_WithInvalidCredentials_DoesNotUpdateLastLogin()
+    {
+        using var factory = new AuthApiFactory();
+        var client = createClientWithoutCookies(factory);
+        var oldLastLoginAtUtc = new DateTime(2026, 5, 1, 12, 0, 0, DateTimeKind.Utc);
+
+        await registerAsync(client);
+        await setLastLoginAsync(factory, "user@example.com", oldLastLoginAtUtc);
+        var response = await client.PostAsJsonAsync("/auth/login", new
+        {
+            email = "user@example.com",
+            password = "wrong123"
+        });
+        var lastLoginAtUtc = await getLastLoginAsync(factory, "user@example.com");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(oldLastLoginAtUtc, lastLoginAtUtc);
+    }
+
+    [Fact]
     public async Task Refresh_WithValidCookie_ReturnsNewAccessTokenAndRotatesRefreshToken()
     {
         using var factory = new AuthApiFactory();
@@ -41,6 +78,8 @@ public sealed class AuthApiTests
         await registerAsync(client);
         var login = await loginAsync(client);
         var originalCookieHeader = getRefreshCookieHeader(login);
+        var oldLastLoginAtUtc = new DateTime(2026, 5, 1, 12, 0, 0, DateTimeKind.Utc);
+        await setLastLoginAsync(factory, "user@example.com", oldLastLoginAtUtc);
 
         using var refreshRequest = new HttpRequestMessage(HttpMethod.Post, "/auth/refresh");
         refreshRequest.Headers.Add("Cookie", originalCookieHeader);
@@ -52,6 +91,7 @@ public sealed class AuthApiTests
         Assert.False(string.IsNullOrWhiteSpace(document.RootElement.GetProperty("accessToken").GetString()));
         Assert.Equal("user@example.com", document.RootElement.GetProperty("user").GetProperty("email").GetString());
         Assert.NotEqual(originalCookieHeader, rotatedCookieHeader);
+        Assert.True(await getLastLoginAsync(factory, "user@example.com") > oldLastLoginAtUtc);
 
         using var reusedOldTokenRequest = new HttpRequestMessage(HttpMethod.Post, "/auth/refresh");
         reusedOldTokenRequest.Headers.Add("Cookie", originalCookieHeader);
@@ -150,6 +190,25 @@ public sealed class AuthApiTests
         Assert.True(response.Headers.TryGetValues("Set-Cookie", out var cookies));
 
         return Assert.Single(cookies, cookie => cookie.StartsWith($"{RefreshCookieName}=", StringComparison.Ordinal));
+    }
+
+    private static async Task<DateTime?> getLastLoginAsync(AuthApiFactory factory, string email)
+    {
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var user = await dbContext.Users.SingleAsync(user => user.Email == email);
+
+        return user.LastLoginAtUtc;
+    }
+
+    private static async Task setLastLoginAsync(AuthApiFactory factory, string email, DateTime lastLoginAtUtc)
+    {
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var user = await dbContext.Users.SingleAsync(user => user.Email == email);
+
+        user.LastLoginAtUtc = lastLoginAtUtc;
+        await dbContext.SaveChangesAsync();
     }
 
     private sealed class AuthApiFactory : WebApplicationFactory<Program>

@@ -3,6 +3,7 @@ export type AdminUser = {
   name: string
   email: string
   createdAt: string
+  lastLoginAtUtc?: string | null
 }
 
 export type ResetUserPasswordResponse = {

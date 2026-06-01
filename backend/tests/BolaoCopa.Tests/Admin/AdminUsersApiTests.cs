@@ -30,7 +30,9 @@ public sealed class AdminUsersApiTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(2, users.Length);
-        Assert.Contains(users, user => user.GetProperty("email").GetString() == "admin@example.com");
+        var adminUser = Assert.Single(users, user => user.GetProperty("email").GetString() == "admin@example.com");
+        Assert.True(adminUser.TryGetProperty("lastLoginAtUtc", out var lastLoginAtUtc));
+        Assert.NotEqual(JsonValueKind.Null, lastLoginAtUtc.ValueKind);
         Assert.All(users, user => Assert.False(user.TryGetProperty("passwordHash", out _)));
     }
 

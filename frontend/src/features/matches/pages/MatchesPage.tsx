@@ -10,6 +10,7 @@ import {
 } from '../../bets/hooks/useBets'
 import { indexBetsByMatchId } from '../../bets/utils/betHistory'
 import { AuthenticatedNav } from '../../../routes/AuthenticatedNav'
+import { useMatchNotice } from '../../notices/hooks/useMatchNotice'
 import { useMatches } from '../hooks/useMatches'
 import { isTodayMatch, parseUtcDate } from '../utils/dateTime'
 import {
@@ -106,6 +107,7 @@ export function MatchesPage() {
   const [now, setNow] = useState(() => new Date())
   const [expandedPublicBetsMatchIds, setExpandedPublicBetsMatchIds] = useState<ReadonlySet<number>>(() => new Set())
   const { data, error, isError, isPending, refetch } = useMatches()
+  const matchNoticeQuery = useMatchNotice()
   const betVisibilityQuery = useBetVisibility()
   const isVisibilityLoaded = !betVisibilityQuery.isPending
   const showBetsPublicly = betVisibilityQuery.data?.showBetsPublicly === true
@@ -144,6 +146,7 @@ export function MatchesPage() {
   const visibleMatches = selectedTab === 'active' ? activeMatches : matchGroups.closedMatches
   const emptyTabMessage = selectedTab === 'active' ? 'Nenhum jogo ativo encontrado.' : 'Nenhum jogo encerrado.'
   const tabPanelLabel = selectedTab === 'active' ? 'tab-jogos' : 'tab-jogos-encerrados'
+  const matchNoticeMessage = matchNoticeQuery.isError ? '' : matchNoticeQuery.data?.message.trim() ?? ''
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNow(new Date()), nowRefreshIntervalMs)
@@ -210,6 +213,16 @@ export function MatchesPage() {
           <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
             Nenhuma partida encontrada.
           </div>
+        ) : null}
+
+        {matchNoticeMessage ? (
+          <section
+            aria-label="Recado das partidas"
+            className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100"
+          >
+            <h2 className="text-lg font-semibold tracking-normal">Recado</h2>
+            <p className="mt-1 whitespace-pre-wrap text-sm">{matchNoticeMessage}</p>
+          </section>
         ) : null}
 
         {!isPending && !isError && matches.length > 0 ? (

@@ -2,6 +2,7 @@ using BolaoCopa.Application.Authentication;
 using BolaoCopa.Application.Authentication.Contracts;
 using BolaoCopa.Application.Authentication.Security;
 using BolaoCopa.Application.Authentication.Users;
+using BolaoCopa.Application.Common.Time;
 using BolaoCopa.Domain.Entities;
 using BolaoCopa.Infrastructure.Authentication;
 using Xunit;
@@ -10,6 +11,8 @@ namespace BolaoCopa.Tests.Authentication;
 
 public sealed class AuthServiceTests
 {
+    private static readonly DateTime TestUtcNow = new(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc);
+
     [Fact]
     public async Task RegisterAsync_CreatesUserWithHashedPassword()
     {
@@ -28,6 +31,7 @@ public sealed class AuthServiceTests
         Assert.Equal("felipe@example.com", user.Email);
         Assert.NotEqual("secret123", user.PasswordHash);
         Assert.NotEmpty(user.PasswordHash);
+        Assert.Equal(TestUtcNow, user.LastLoginAtUtc);
         Assert.Equal("test-token", result.Value.AccessToken);
         Assert.Equal(user.Email, result.Value.User.Email);
         Assert.Empty(result.Value.User.Roles);
@@ -61,7 +65,7 @@ public sealed class AuthServiceTests
         user.PasswordHash = passwordHashService.HashPassword(user, "secret123");
         repository.Users.Add(user);
 
-        var service = new AuthService(repository, passwordHashService, new FakeJwtTokenService());
+        var service = CreateService(repository, passwordHashService);
 
         var result = await service.LoginAsync(new LoginRequest("FELIPE@example.com", "secret123"));
 
@@ -69,6 +73,8 @@ public sealed class AuthServiceTests
         Assert.NotNull(result.Value);
         Assert.Equal("test-token", result.Value.AccessToken);
         Assert.Equal(user.Id, result.Value.User.Id);
+        Assert.Equal(TestUtcNow, user.LastLoginAtUtc);
+        Assert.Equal(1, repository.SaveChangesCount);
         Assert.Empty(result.Value.User.Roles);
     }
 
@@ -81,7 +87,7 @@ public sealed class AuthServiceTests
         user.PasswordHash = passwordHashService.HashPassword(user, "secret123");
         repository.Users.Add(user);
 
-        var service = new AuthService(repository, passwordHashService, new FakeJwtTokenService());
+        var service = CreateService(repository, passwordHashService);
 
         var result = await service.LoginAsync(new LoginRequest("admin@example.com", "secret123"));
 
@@ -102,14 +108,38 @@ public sealed class AuthServiceTests
         Assert.Equal("Invalid email or password.", result.ErrorMessage);
     }
 
+    [Fact]
+    public async Task LoginAsync_DoesNotUpdateLastLoginWhenPasswordIsInvalid()
+    {
+        var repository = new FakeUserAuthRepository();
+        var passwordHashService = new PasswordHashService();
+        var user = new User { Id = 7, Name = "Felipe", Email = "felipe@example.com" };
+        user.PasswordHash = passwordHashService.HashPassword(user, "secret123");
+        repository.Users.Add(user);
+
+        var service = CreateService(repository, passwordHashService);
+
+        var result = await service.LoginAsync(new LoginRequest("felipe@example.com", "wrong123"));
+
+        Assert.False(result.Succeeded);
+        Assert.Null(user.LastLoginAtUtc);
+        Assert.Equal(0, repository.SaveChangesCount);
+    }
+
     private static AuthService CreateService(FakeUserAuthRepository repository)
     {
-        return new AuthService(repository, new PasswordHashService(), new FakeJwtTokenService());
+        return CreateService(repository, new PasswordHashService());
+    }
+
+    private static AuthService CreateService(FakeUserAuthRepository repository, PasswordHashService passwordHashService)
+    {
+        return new AuthService(repository, passwordHashService, new FakeJwtTokenService(), new FakeUtcClock(TestUtcNow));
     }
 
     private sealed class FakeUserAuthRepository : IUserAuthRepository
     {
         public List<User> Users { get; } = [];
+        public int SaveChangesCount { get; private set; }
 
         public Task<User?> FindByEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default)
         {
@@ -123,6 +153,17 @@ public sealed class AuthServiceTests
             Users.Add(user);
             return Task.CompletedTask;
         }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            SaveChangesCount++;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeUtcClock(DateTime utcNow) : IUtcClock
+    {
+        public DateTime UtcNow { get; } = utcNow;
     }
 
     private sealed class FakeJwtTokenService : IJwtTokenService

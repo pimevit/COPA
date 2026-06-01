@@ -53,7 +53,8 @@ public sealed class AdminUsersService(
             user.Id,
             user.Name,
             user.Email,
-            user.CreatedAt);
+            user.CreatedAt,
+            user.LastLoginAtUtc);
     }
 
     private static string generateTemporaryPassword()

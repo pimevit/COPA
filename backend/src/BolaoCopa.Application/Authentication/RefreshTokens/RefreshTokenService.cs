@@ -47,7 +47,9 @@ public sealed class RefreshTokenService(
                 "Refresh token is invalid.");
         }
 
-        storedRefreshToken.RevokedAtUtc = clock.UtcNow;
+        var now = clock.UtcNow;
+        storedRefreshToken.RevokedAtUtc = now;
+        storedRefreshToken.User.LastLoginAtUtc = now;
 
         var newRefreshToken = issueRefreshToken(storedRefreshToken.UserId);
         await refreshTokenRepository.AddAsync(newRefreshToken.Entity, cancellationToken);

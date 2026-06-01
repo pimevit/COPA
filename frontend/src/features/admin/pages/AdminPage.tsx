@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
@@ -11,6 +11,7 @@ import { getStageLabel, getStatusLabel } from '../../matches/utils/labels'
 import { rankingQueryKey } from '../../ranking/hooks/useRanking'
 import { AuthenticatedNav } from '../../../routes/AuthenticatedNav'
 import type { MatchListItem, MatchStage } from '../../../types/matches'
+import { matchNoticeQueryKey, useMatchNotice, useUpdateMatchNoticeMutation } from '../../notices/hooks/useMatchNotice'
 import type { AdminMaintenanceResponse } from '../api/adminMaintenanceApi'
 import {
   adminMatchesQueryKey,
@@ -27,6 +28,7 @@ import {
 } from '../hooks/useAdminMatches'
 
 const stages: MatchStage[] = ['Groups', 'RoundOf16', 'QuarterFinals', 'SemiFinals', 'Final']
+const noticeMaxLength = 500
 
 type ResultRowProps = {
   match: MatchListItem
@@ -42,6 +44,7 @@ type ResultRowProps = {
 
 export function AdminPage() {
   const queryClient = useQueryClient()
+  const matchNoticeQuery = useMatchNotice()
   const teamsQuery = useAdminTeams()
   const matchesQuery = useAdminMatches()
   const createMatchMutation = useCreateMatchMutation()
@@ -51,6 +54,7 @@ export function AdminPage() {
   const importBrasileiraoMutation = useImportBrasileiraoTeamsMutation()
   const importWorldCupMutation = useImportWorldCupTeamsMutation()
   const clearApplicationDataMutation = useClearApplicationDataMutation()
+  const updateMatchNoticeMutation = useUpdateMatchNoticeMutation()
   const [homeTeamId, setHomeTeamId] = useState('')
   const [awayTeamId, setAwayTeamId] = useState('')
   const [stage, setStage] = useState<MatchStage>('Groups')
@@ -63,6 +67,9 @@ export function AdminPage() {
   const [lockingMatchId, setLockingMatchId] = useState<number | null>(null)
   const [maintenanceError, setMaintenanceError] = useState<string | null>(null)
   const [maintenanceSuccess, setMaintenanceSuccess] = useState<string | null>(null)
+  const [noticeMessage, setNoticeMessage] = useState('')
+  const [noticeError, setNoticeError] = useState<string | null>(null)
+  const [noticeSuccess, setNoticeSuccess] = useState<string | null>(null)
 
   const teams = teamsQuery.data ?? []
   const matches = useMemo(
@@ -72,6 +79,13 @@ export function AdminPage() {
       ),
     [matchesQuery.data],
   )
+  const noticeCharactersRemaining = noticeMaxLength - noticeMessage.length
+
+  useEffect(() => {
+    if (matchNoticeQuery.data) {
+      setNoticeMessage(matchNoticeQuery.data.message)
+    }
+  }, [matchNoticeQuery.data])
 
   async function refreshAdminData() {
     await queryClient.invalidateQueries({ queryKey: teamsQueryKey })
@@ -204,6 +218,34 @@ export function AdminPage() {
     }
   }
 
+  async function handleSaveNotice(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await saveNotice(noticeMessage)
+  }
+
+  async function handleClearNotice() {
+    await saveNotice('')
+  }
+
+  async function saveNotice(message: string) {
+    setNoticeError(null)
+    setNoticeSuccess(null)
+
+    if (message.length > noticeMaxLength) {
+      setNoticeError(`Recado deve ter no maximo ${noticeMaxLength} caracteres.`)
+      return
+    }
+
+    try {
+      const result = await updateMatchNoticeMutation.mutateAsync({ message })
+      await queryClient.invalidateQueries({ queryKey: matchNoticeQueryKey })
+      setNoticeMessage(result.message)
+      setNoticeSuccess(result.message ? 'Recado salvo.' : 'Recado removido.')
+    } catch (error) {
+      setNoticeError(mapAdminError(error, 'Nao foi possivel salvar o recado.'))
+    }
+  }
+
   async function handleImportBrasileiraoTeams() {
     await runMaintenanceAction(() => importBrasileiraoMutation.mutateAsync())
   }
@@ -250,6 +292,53 @@ export function AdminPage() {
             </Link>
           </div>
         </header>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold tracking-normal">Recado das partidas</h2>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Texto exibido no topo da tela de Partidas.
+              </p>
+            </div>
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              {noticeCharactersRemaining} caracteres restantes
+            </span>
+          </div>
+          <form className="mt-4 flex flex-col gap-3" onSubmit={handleSaveNotice}>
+            <textarea
+              aria-label="Recado exibido nas partidas"
+              className="min-h-28 resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:disabled:bg-slate-900/60"
+              disabled={matchNoticeQuery.isPending || updateMatchNoticeMutation.isPending}
+              maxLength={noticeMaxLength}
+              onChange={(event) => setNoticeMessage(event.target.value)}
+              value={noticeMessage}
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400 dark:focus:ring-offset-slate-950"
+                disabled={matchNoticeQuery.isPending || updateMatchNoticeMutation.isPending}
+                type="submit"
+              >
+                {updateMatchNoticeMutation.isPending ? 'Salvando...' : 'Salvar recado'}
+              </button>
+              <button
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900 dark:focus:ring-offset-slate-950"
+                disabled={matchNoticeQuery.isPending || updateMatchNoticeMutation.isPending || noticeMessage.length === 0}
+                onClick={() => void handleClearNotice()}
+                type="button"
+              >
+                Limpar recado
+              </button>
+            </div>
+          </form>
+
+          {matchNoticeQuery.isError ? (
+            <FeedbackMessage tone="error" message="Nao foi possivel carregar o recado atual." />
+          ) : null}
+          {noticeError ? <FeedbackMessage tone="error" message={noticeError} /> : null}
+          {noticeSuccess ? <FeedbackMessage tone="success" message={noticeSuccess} /> : null}
+        </section>
 
         <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
           <h2 className="text-lg font-semibold tracking-normal">Manutencao de dados</h2>

@@ -11,9 +11,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     private static readonly ValueConverter<DateTime, DateTime> UtcDateTimeConverter = new(
         value => value.Kind == DateTimeKind.Utc ? value : DateTime.SpecifyKind(value, DateTimeKind.Utc),
         value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
+    private static readonly ValueConverter<DateTime?, DateTime?> NullableUtcDateTimeConverter = new(
+        value => value.HasValue
+            ? value.Value.Kind == DateTimeKind.Utc ? value.Value : DateTime.SpecifyKind(value.Value, DateTimeKind.Utc)
+            : value,
+        value => value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) : value);
 
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Notice> Notices => Set<Notice>();
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<Match> Matches => Set<Match>();
     public DbSet<Bet> Bets => Set<Bet>();
@@ -24,6 +30,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         configureUser(modelBuilder);
         configureRefreshToken(modelBuilder);
+        configureNotice(modelBuilder);
         configureTeam(modelBuilder);
         configureMatch(modelBuilder);
         configureBet(modelBuilder);
@@ -56,6 +63,25 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             .IsRequired();
 
         configureUtcDate(entity.Property(user => user.CreatedAt));
+        configureNullableUtcDate(entity.Property(user => user.LastLoginAtUtc));
+    }
+
+    private static void configureNotice(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<Notice>();
+
+        entity.ToTable("Notices");
+        entity.HasKey(notice => notice.Key);
+
+        entity.Property(notice => notice.Key)
+            .HasMaxLength(50)
+            .IsRequired();
+
+        entity.Property(notice => notice.Message)
+            .HasMaxLength(500)
+            .IsRequired();
+
+        configureUtcDate(entity.Property(notice => notice.UpdatedAtUtc));
     }
 
     private static void configureRefreshToken(ModelBuilder modelBuilder)
@@ -193,5 +219,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         propertyBuilder
             .HasColumnType("datetime2")
             .HasConversion(UtcDateTimeConverter);
+    }
+
+    private static void configureNullableUtcDate(PropertyBuilder<DateTime?> propertyBuilder)
+    {
+        propertyBuilder
+            .HasColumnType("datetime2")
+            .HasConversion(NullableUtcDateTimeConverter)
+            .IsRequired(false);
     }
 }

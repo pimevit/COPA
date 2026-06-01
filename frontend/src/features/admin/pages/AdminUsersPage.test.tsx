@@ -28,12 +28,14 @@ const users: AdminUser[] = [
     name: 'Admin User',
     email: 'admin@example.com',
     createdAt: '2026-05-27T12:00:00Z',
+    lastLoginAtUtc: '2026-05-27T15:30:00Z',
   },
   {
     id: 2,
     name: 'Regular User',
     email: 'user@example.com',
     createdAt: '2026-05-27T12:30:00Z',
+    lastLoginAtUtc: null,
   },
 ]
 
@@ -82,6 +84,8 @@ describe('AdminUsersPage', () => {
     expect(screen.getByRole('heading', { name: 'Usuarios' })).toBeInTheDocument()
     expect(screen.getByText('Admin User')).toBeInTheDocument()
     expect(screen.getByText('user@example.com')).toBeInTheDocument()
+    expect(screen.getByText(/Último login: 27\/05\/2026/)).toBeInTheDocument()
+    expect(screen.getByText('Último login: Sem registro')).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Resetar senha' })).toHaveLength(2)
   })
 

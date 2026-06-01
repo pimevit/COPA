@@ -13,6 +13,7 @@ import {
   useMyBets,
   usePublicBets,
 } from '../../bets/hooks/useBets'
+import { useMatchNotice } from '../../notices/hooks/useMatchNotice'
 import { useMatches } from '../hooks/useMatches'
 
 vi.mock('../hooks/useMatches', () => ({
@@ -30,9 +31,21 @@ vi.mock('../../bets/hooks/useBets', async () => {
   }
 })
 
+vi.mock('../../notices/hooks/useMatchNotice', async () => {
+  const actual = await vi.importActual<typeof import('../../notices/hooks/useMatchNotice')>(
+    '../../notices/hooks/useMatchNotice',
+  )
+
+  return {
+    ...actual,
+    useMatchNotice: vi.fn(),
+  }
+})
+
 const mockedUseMatches = vi.mocked(useMatches)
 const mockedUseBetVisibility = vi.mocked(useBetVisibility)
 const mockedUseMyBets = vi.mocked(useMyBets)
+const mockedUseMatchNotice = vi.mocked(useMatchNotice)
 const mockedUsePublicBets = vi.mocked(usePublicBets)
 
 const baseMatch: MatchListItem = {
@@ -169,6 +182,17 @@ function mockPublicBetsState(overrides: Partial<ReturnType<typeof usePublicBets>
   } as ReturnType<typeof usePublicBets>)
 }
 
+function mockMatchNoticeState(overrides: Partial<ReturnType<typeof useMatchNotice>>) {
+  mockedUseMatchNotice.mockReturnValue({
+    data: { message: '', updatedAtUtc: null },
+    error: null,
+    isError: false,
+    isPending: false,
+    refetch: vi.fn(),
+    ...overrides,
+  } as ReturnType<typeof useMatchNotice>)
+}
+
 function renderWithQueryClient(children: ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -194,8 +218,10 @@ describe('MatchesPage', () => {
     mockedUseMatches.mockReset()
     mockedUseBetVisibility.mockReset()
     mockedUseMyBets.mockReset()
+    mockedUseMatchNotice.mockReset()
     mockedUsePublicBets.mockReset()
     mockBetVisibilityState({})
+    mockMatchNoticeState({})
     mockMyBetsState({})
     mockPublicBetsState({})
   })
@@ -223,6 +249,35 @@ describe('MatchesPage', () => {
     renderWithQueryClient(<MatchesPage />)
 
     expect(screen.getByText('Nenhuma partida encontrada.')).toBeInTheDocument()
+  })
+
+  it('renders the matches notice when it has a message', () => {
+    mockMatchesState({ data: [] })
+    mockMatchNoticeState({
+      data: {
+        message: 'Palpites da rodada liberados ate sexta.',
+        updatedAtUtc: '2026-06-01T12:00:00Z',
+      },
+    })
+
+    renderWithQueryClient(<MatchesPage />)
+
+    expect(screen.getByRole('region', { name: 'Recado das partidas' })).toBeInTheDocument()
+    expect(screen.getByText('Palpites da rodada liberados ate sexta.')).toBeInTheDocument()
+  })
+
+  it('does not block matches when the notice request fails', () => {
+    mockMatchesState({ data: [baseMatch] })
+    mockMatchNoticeState({
+      data: undefined,
+      error: new Error('Falha no recado'),
+      isError: true,
+    })
+
+    renderWithQueryClient(<MatchesPage />)
+
+    expect(screen.getByText('Brazil')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Recado das partidas' })).not.toBeInTheDocument()
   })
 
   it('renders matches sorted by date with result and betting badges', () => {

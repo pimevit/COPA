@@ -1,6 +1,7 @@
 using BolaoCopa.Application.Authentication.Contracts;
 using BolaoCopa.Application.Authentication.Security;
 using BolaoCopa.Application.Authentication.Users;
+using BolaoCopa.Application.Common.Time;
 using BolaoCopa.Domain.Entities;
 
 namespace BolaoCopa.Application.Authentication;
@@ -8,7 +9,8 @@ namespace BolaoCopa.Application.Authentication;
 public sealed class AuthService(
     IUserAuthRepository userRepository,
     IPasswordHashService passwordHashService,
-    IJwtTokenService jwtTokenService)
+    IJwtTokenService jwtTokenService,
+    IUtcClock clock)
 {
     public async Task<AuthResult<AuthTokenResponse>> RegisterAsync(
         RegisterRequest request,
@@ -26,11 +28,13 @@ public sealed class AuthService(
             return AuthResult<AuthTokenResponse>.Failure(AuthErrorCode.EmailAlreadyExists, "Email is already registered.");
         }
 
+        var now = clock.UtcNow;
         var user = new User
         {
             Name = request.Name.Trim(),
             Email = normalizedEmail,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = now,
+            LastLoginAtUtc = now
         };
 
         user.PasswordHash = passwordHashService.HashPassword(user, request.Password);
@@ -60,6 +64,9 @@ public sealed class AuthService(
         {
             return AuthResult<AuthTokenResponse>.Failure(AuthErrorCode.InvalidCredentials, "Invalid email or password.");
         }
+
+        user.LastLoginAtUtc = clock.UtcNow;
+        await userRepository.SaveChangesAsync(cancellationToken);
 
         var token = jwtTokenService.GenerateToken(user);
 
