@@ -77,6 +77,40 @@ public sealed class RankingServiceTests
     }
 
     [Fact]
+    public async Task GetRankingAsync_ReturnsTieBreakerValues()
+    {
+        var service = createService(
+            createBet(userId: 1, points: 5, matchOffset: 1, createdOffset: 2),
+            createBet(
+                userId: 1,
+                points: 2,
+                homePrediction: 1,
+                awayPrediction: 0,
+                homeResult: 2,
+                awayResult: 0,
+                matchOffset: 2,
+                createdOffset: 1),
+            createBet(
+                userId: 1,
+                points: 0,
+                homePrediction: 0,
+                awayPrediction: 1,
+                homeResult: 2,
+                awayResult: 0,
+                matchOffset: 3,
+                createdOffset: 3));
+
+        var ranking = await service.GetRankingAsync();
+        var tieBreakers = Assert.Single(ranking).TieBreakers;
+
+        Assert.Equal(1, tieBreakers.ExactScores);
+        Assert.Equal(2, tieBreakers.OutcomeHits);
+        Assert.Equal(2, tieBreakers.BestHitStreak);
+        Assert.Equal(BaseCreatedAt.AddMinutes(1), tieBreakers.FirstBetCreatedAtUtc);
+        Assert.Equal(DateTimeKind.Utc, tieBreakers.FirstBetCreatedAtUtc.Kind);
+    }
+
+    [Fact]
     public async Task GetRankingAsync_SetsTop3AndCurrentUserFlags()
     {
         var service = createService(

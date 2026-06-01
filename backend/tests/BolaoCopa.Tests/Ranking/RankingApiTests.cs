@@ -33,6 +33,13 @@ public sealed class RankingApiTests
         Assert.Equal(7, ranking[0].GetProperty("points").GetInt32());
         Assert.Equal(1, ranking[0].GetProperty("position").GetInt32());
         Assert.True(ranking[0].GetProperty("isTop3").GetBoolean());
+        var aliceTieBreakers = ranking[0].GetProperty("tieBreakers");
+        Assert.Equal(2, aliceTieBreakers.GetProperty("exactScores").GetInt32());
+        Assert.Equal(2, aliceTieBreakers.GetProperty("outcomeHits").GetInt32());
+        Assert.Equal(2, aliceTieBreakers.GetProperty("bestHitStreak").GetInt32());
+        Assert.Equal(
+            new DateTime(2026, 6, 1, 12, 1, 0, DateTimeKind.Utc),
+            aliceTieBreakers.GetProperty("firstBetCreatedAtUtc").GetDateTime());
         Assert.All(ranking, item => Assert.False(item.GetProperty("isCurrentUser").GetBoolean()));
     }
 

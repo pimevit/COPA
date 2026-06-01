@@ -35,7 +35,12 @@ public sealed class RankingService(IRankingReadRepository rankingReadRepository)
                     candidate.UserName,
                     candidate.TotalPoints,
                     position <= 3,
-                    currentUserId.HasValue && candidate.UserId == currentUserId.Value);
+                    currentUserId.HasValue && candidate.UserId == currentUserId.Value,
+                    new RankingTieBreakersResponse(
+                        candidate.ExactScores,
+                        candidate.OutcomeHits,
+                        candidate.BestHitStreak,
+                        ensureUtc(candidate.FirstBetCreatedAt)));
             })
             .ToList();
     }
@@ -93,6 +98,13 @@ public sealed class RankingService(IRankingReadRepository rankingReadRepository)
         }
 
         return bestStreak;
+    }
+
+    private static DateTime ensureUtc(DateTime dateTime)
+    {
+        return dateTime.Kind == DateTimeKind.Utc
+            ? dateTime
+            : DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
     }
 
     private sealed record RankingCandidate(

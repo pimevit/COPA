@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { RankingPage } from './RankingPage'
-import type { RankingItem } from '../../../types/ranking'
+import type { RankingItem, RankingTieBreakers } from '../../../types/ranking'
 import { useRanking } from '../hooks/useRanking'
 
 vi.mock('../hooks/useRanking', async () => {
@@ -20,10 +20,45 @@ vi.mock('../hooks/useRanking', async () => {
 const mockedUseRanking = vi.mocked(useRanking)
 
 const rankingItems: RankingItem[] = [
-  { position: 1, userId: 10, name: 'Ana Silva', points: 20, isTop3: true, isCurrentUser: false },
-  { position: 2, userId: 20, name: 'Bruno Costa', points: 18, isTop3: true, isCurrentUser: true },
-  { position: 3, userId: 30, name: 'Carla Souza', points: 16, isTop3: true, isCurrentUser: false },
+  createRankingItem(1, 10, 'Ana Silva', 20, true, false, {
+    exactScores: 3,
+    outcomeHits: 6,
+    bestHitStreak: 4,
+    firstBetCreatedAtUtc: '2026-06-01T12:00:00Z',
+  }),
+  createRankingItem(2, 20, 'Bruno Costa', 18, true, true, {
+    exactScores: 2,
+    outcomeHits: 5,
+    bestHitStreak: 3,
+    firstBetCreatedAtUtc: '2026-06-01T12:05:00Z',
+  }),
+  createRankingItem(3, 30, 'Carla Souza', 16, true, false, {
+    exactScores: 1,
+    outcomeHits: 4,
+    bestHitStreak: 2,
+    firstBetCreatedAtUtc: '2026-06-01T12:10:00Z',
+  }),
 ]
+
+function createRankingItem(
+  position: number,
+  userId: number,
+  name: string,
+  points: number,
+  isTop3: boolean,
+  isCurrentUser: boolean,
+  tieBreakers: RankingTieBreakers,
+): RankingItem {
+  return {
+    position,
+    userId,
+    name,
+    points,
+    isTop3,
+    isCurrentUser,
+    tieBreakers,
+  }
+}
 
 function mockRankingState(overrides: Partial<ReturnType<typeof useRanking>>) {
   mockedUseRanking.mockReturnValue({

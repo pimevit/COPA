@@ -1,5 +1,6 @@
 import type { RankingItem } from '../../../types/ranking'
 import { formatRankingPoints, formatRankingPosition } from '../utils/formatting'
+import { RankingTieBreakersTooltip } from './RankingTieBreakersTooltip'
 
 type RankingRowProps = {
   item: RankingItem
@@ -32,9 +33,12 @@ export function RankingRow({ item }: RankingRowProps) {
             ) : null}
           </div>
         </div>
-        <span className="min-w-20 rounded-md bg-slate-100 px-2 py-1 text-center text-sm font-semibold text-slate-800 dark:bg-slate-900 dark:text-slate-100">
-          {formatRankingPoints(item.points)}
-        </span>
+        <div className="flex items-center justify-end gap-2">
+          <span className="min-w-20 rounded-md bg-slate-100 px-2 py-1 text-center text-sm font-semibold text-slate-800 dark:bg-slate-900 dark:text-slate-100">
+            {formatRankingPoints(item.points)}
+          </span>
+          <RankingTieBreakersTooltip item={item} />
+        </div>
       </div>
     </article>
   )

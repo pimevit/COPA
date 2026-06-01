@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatRankingPoints, formatRankingPosition } from './formatting'
+import { formatRankingDateTime, formatRankingPoints, formatRankingPosition } from './formatting'
 
 describe('ranking formatting', () => {
   it('formats positions', () => {
@@ -14,5 +14,10 @@ describe('ranking formatting', () => {
     expect(formatRankingPoints(1)).toBe('1 pt')
     expect(formatRankingPoints(15)).toBe('15 pts')
     expect(formatRankingPoints(-2)).toBe('0 pts')
+  })
+
+  it('formats tie-breaker dates', () => {
+    expect(formatRankingDateTime('invalid')).toBe('-')
+    expect(formatRankingDateTime('2026-06-01T12:00:00Z')).toMatch(/01\/06\/2026/)
   })
 })

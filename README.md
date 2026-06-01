@@ -383,7 +383,13 @@ Resposta:
     "name": "Felipe",
     "points": 15,
     "isTop3": true,
-    "isCurrentUser": true
+    "isCurrentUser": true,
+    "tieBreakers": {
+      "exactScores": 3,
+      "outcomeHits": 6,
+      "bestHitStreak": 4,
+      "firstBetCreatedAtUtc": "2026-06-01T12:00:00Z"
+    }
   }
 ]
 ```
@@ -395,6 +401,7 @@ Regras implementadas:
 - Entram apenas palpites de partidas com resultado completo
   (`HomeGoals` e `AwayGoals` preenchidos).
 - `points` e a soma de `Bet.PointsEarned`; o endpoint nao recalcula pontuacao.
+- `tieBreakers` expoe os valores usados nos criterios visiveis de desempate.
 - Ordenacao:
   1. maior total de pontos;
   2. mais placares exatos;
@@ -879,6 +886,12 @@ type RankingItem = {
   points: number
   isTop3: boolean
   isCurrentUser: boolean
+  tieBreakers: {
+    exactScores: number
+    outcomeHits: number
+    bestHitStreak: number
+    firstBetCreatedAtUtc: string
+  }
 }
 ```
 
@@ -887,6 +900,8 @@ Comportamento implementado:
 - a tela preserva a ordem retornada pela API;
 - `position`, `points`, `isTop3` e `isCurrentUser` sao usados diretamente do
   backend;
+- os criterios de desempate de cada usuario aparecem em tooltip usando
+  `tieBreakers`;
 - o frontend nao recalcula pontos, desempates nem Top 3;
 - Top 3 aparece em destaque quando a API marca `isTop3`;
 - a linha do usuario logado aparece destacada quando `isCurrentUser` e

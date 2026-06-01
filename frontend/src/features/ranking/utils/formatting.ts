@@ -15,3 +15,16 @@ export function formatRankingPoints(points: number): string {
 
   return normalizedPoints === 1 ? '1 pt' : `${normalizedPoints} pts`
 }
+
+export function formatRankingDateTime(value: string): string {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return '-'
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(date)
+}

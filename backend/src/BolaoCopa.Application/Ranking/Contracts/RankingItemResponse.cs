@@ -6,4 +6,11 @@ public sealed record RankingItemResponse(
     string Name,
     int Points,
     bool IsTop3,
-    bool IsCurrentUser);
+    bool IsCurrentUser,
+    RankingTieBreakersResponse TieBreakers);
+
+public sealed record RankingTieBreakersResponse(
+    int ExactScores,
+    int OutcomeHits,
+    int BestHitStreak,
+    DateTime FirstBetCreatedAtUtc);
