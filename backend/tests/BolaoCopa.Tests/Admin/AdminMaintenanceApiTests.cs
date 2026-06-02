@@ -102,7 +102,11 @@ public sealed class AdminMaintenanceApiTests
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.Equal(48, await dbContext.Teams.CountAsync());
-        Assert.Contains(await dbContext.Teams.ToListAsync(), team => team.Code == "CAN" && team.Name == "Canada");
+        var teams = await dbContext.Teams.ToListAsync();
+        Assert.Contains(teams, team => team.Code == "CAN" && team.Name == "Canadá");
+        Assert.Contains(teams, team => team.Code == "BRA" && team.Name == "Brasil");
+        Assert.Contains(teams, team => team.Code == "GER" && team.Name == "Alemanha");
+        Assert.Contains(teams, team => team.Code == "PAR" && team.Name == "Paraguai");
     }
 
     [Fact]
