@@ -9,6 +9,7 @@ import {
 } from "../../bets/hooks/useBets";
 import { indexBetsByMatchId } from "../../bets/utils/betHistory";
 import { AuthenticatedNav } from "../../../routes/AuthenticatedNav";
+import { NoticeMessage } from "../../notices/components/NoticeMessage";
 import { useMatchNotice } from "../../notices/hooks/useMatchNotice";
 import { useMatches } from "../hooks/useMatches";
 import { isTodayMatch } from "../utils/dateTime";
@@ -298,8 +299,8 @@ export function MatchesPage() {
             className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100"
           >
             <h2 className="text-lg font-semibold tracking-normal">Recado</h2>
-            <p className="mt-1 whitespace-pre-wrap text-sm">
-              {matchNoticeMessage}
+            <p className="mt-1 whitespace-pre-wrap break-words text-sm">
+              <NoticeMessage message={matchNoticeMessage} />
             </p>
           </section>
         ) : null}
@@ -436,4 +437,3 @@ export function MatchesPage() {
     </main>
   );
 }
-

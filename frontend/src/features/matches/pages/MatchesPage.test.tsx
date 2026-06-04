@@ -270,6 +270,26 @@ describe('MatchesPage', () => {
     expect(screen.getByText('Palpites da rodada liberados ate sexta.')).toBeInTheDocument()
   })
 
+  it('renders links in the matches notice', () => {
+    mockMatchesState({ data: [] })
+    mockMatchNoticeState({
+      data: {
+        message: 'Leia [as regras](https://example.com/regras). Grupo: www.example.com/grupo.',
+        updatedAtUtc: '2026-06-01T12:00:00Z',
+      },
+    })
+
+    renderWithQueryClient(<MatchesPage />)
+
+    const rulesLink = screen.getByRole('link', { name: 'as regras' })
+    const groupLink = screen.getByRole('link', { name: 'www.example.com/grupo' })
+
+    expect(rulesLink).toHaveAttribute('href', 'https://example.com/regras')
+    expect(rulesLink).toHaveAttribute('target', '_blank')
+    expect(rulesLink).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(groupLink).toHaveAttribute('href', 'https://www.example.com/grupo')
+  })
+
   it('does not block matches when the notice request fails', () => {
     mockMatchesState({ data: [baseMatch] })
     mockMatchNoticeState({

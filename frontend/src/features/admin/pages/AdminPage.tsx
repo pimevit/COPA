@@ -298,7 +298,7 @@ export function AdminPage() {
             <div>
               <h2 className="text-lg font-semibold tracking-normal">Recado das partidas</h2>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                Texto exibido no topo da tela de Partidas.
+                Texto exibido no topo da tela de Partidas. Use URLs ou [texto](https://...) para links.
               </p>
             </div>
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
