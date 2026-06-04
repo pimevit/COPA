@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { MatchListItem } from '../../../types/matches'
 import { formatMatchDateTime, isTodayMatch } from './dateTime'
 import { getStageLabel, getStatusLabel } from './labels'
-import { getPendingBetMatches, isMatchClosedByTime, splitMatchesByClosedState } from './matchLists'
+import { getPendingBetMatches, groupMatchesByRound, isMatchClosedByTime, splitMatchesByClosedState } from './matchLists'
 import { formatMatchResult, hasMatchResult } from './result'
 
 function buildMatch(overrides: Partial<MatchListItem> = {}): MatchListItem {
@@ -82,5 +82,63 @@ describe('match list helpers', () => {
     )
 
     expect(pendingMatches.map((match) => match.id)).toEqual([1])
+  })
+
+  it('groups group-stage matches into rodadas and then knockout stages', () => {
+    const roundOneFirstMatch = buildMatch({ id: 1, matchDate: '2026-06-11T15:00:00Z' })
+    const roundOneSecondMatch = buildMatch({ id: 2, matchDate: '2026-06-11T18:00:00Z' })
+    const roundTwoFirstMatch = buildMatch({
+      id: 3,
+      homeTeam: roundOneFirstMatch.homeTeam,
+      awayTeam: roundOneSecondMatch.homeTeam,
+      matchDate: '2026-06-18T15:00:00Z',
+    })
+    const roundTwoSecondMatch = buildMatch({
+      id: 4,
+      homeTeam: roundOneFirstMatch.awayTeam,
+      awayTeam: roundOneSecondMatch.awayTeam,
+      matchDate: '2026-06-18T18:00:00Z',
+    })
+    const roundOf16Match = buildMatch({ id: 5, matchDate: '2026-06-28T15:00:00Z', stage: 'RoundOf16' })
+
+    const roundGroups = groupMatchesByRound(
+      [roundTwoSecondMatch, roundOf16Match, roundOneSecondMatch, roundTwoFirstMatch, roundOneFirstMatch],
+      new Map(),
+      new Date('2026-06-08T12:00:00Z'),
+    )
+
+    expect(roundGroups.map((group) => group.label)).toEqual(['Rodada 1', 'Rodada 2', 'Oitavas'])
+    expect(roundGroups[0].matches.map((match) => match.id)).toEqual([1, 2])
+    expect(roundGroups[1].matches.map((match) => match.id)).toEqual([3, 4])
+    expect(roundGroups[2].matches.map((match) => match.id)).toEqual([5])
+  })
+
+  it('marks round groups as complete only when there are no open pending bets', () => {
+    const openWithoutBet = buildMatch({ id: 1, isBettingOpen: true, matchDate: '2026-06-11T19:00:00Z' })
+    const openWithBet = buildMatch({ id: 2, isBettingOpen: true, matchDate: '2026-06-12T19:00:00Z' })
+    const closedWindowWithoutBet = buildMatch({ id: 3, isBettingOpen: false, matchDate: '2026-06-13T19:00:00Z' })
+    const now = new Date('2026-06-11T15:00:00Z')
+
+    const pendingGroup = groupMatchesByRound(
+      [openWithBet, closedWindowWithoutBet, openWithoutBet],
+      new Map([[2, {}]]),
+      now,
+    )[0]
+
+    expect(pendingGroup.pendingCount).toBe(1)
+    expect(pendingGroup.isComplete).toBe(false)
+    expect(pendingGroup.matches.map((match) => match.id)).toEqual([1, 2, 3])
+
+    const completeGroup = groupMatchesByRound(
+      [openWithBet, closedWindowWithoutBet, openWithoutBet],
+      new Map([
+        [1, {}],
+        [2, {}],
+      ]),
+      now,
+    )[0]
+
+    expect(completeGroup.pendingCount).toBe(0)
+    expect(completeGroup.isComplete).toBe(true)
   })
 })

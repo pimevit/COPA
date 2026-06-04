@@ -208,6 +208,10 @@ function renderWithQueryClient(children: ReactNode) {
   )
 }
 
+function getRoundMatchesList(label = 'Rodada 1') {
+  return screen.getByRole('list', { name: `Jogos da ${label}` })
+}
+
 describe('MatchesPage', () => {
   afterEach(() => {
     cleanup()
@@ -284,21 +288,20 @@ describe('MatchesPage', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-06-11T12:00:00-03:00'))
 
-    const laterMatch: MatchListItem = {
-      ...baseMatch,
-      id: 2,
+    const laterMatch = buildMatch({
+      id: 3,
       matchDate: '2026-06-12T19:00:00Z',
       homeGoals: 1,
       awayGoals: 1,
       isBettingOpen: false,
-    }
+    })
 
     mockMatchesState({ data: [laterMatch, baseMatch] })
     mockMyBetsState({ data: [baseBet] })
 
     renderWithQueryClient(<MatchesPage />)
 
-    const listItems = screen.getAllByRole('listitem')
+    const listItems = within(getRoundMatchesList()).getAllByRole('listitem')
 
     expect(listItems[0]).toHaveTextContent('Brazil')
     expect(listItems[0]).toHaveTextContent('Janela aberta')
@@ -329,8 +332,11 @@ describe('MatchesPage', () => {
     renderWithQueryClient(<MatchesPage />)
 
     expect(screen.getByText('Falta 1 jogo para voce palpitar.')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Rodada 1/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /Rodada 1/ })).toHaveTextContent('1 para palpitar')
+    expect(screen.getByRole('tab', { name: 'Jogos (2)' })).toHaveAttribute('aria-selected', 'true')
 
-    const matchList = screen.getByRole('list', { name: 'Lista de partidas' })
+    const matchList = getRoundMatchesList()
     const listItems = within(matchList).getAllByRole('listitem')
 
     expect(listItems[0]).toHaveTextContent('Sem palpite')
@@ -348,6 +354,56 @@ describe('MatchesPage', () => {
     renderWithQueryClient(<MatchesPage />)
 
     expect(screen.getByText('Voce ja fez todos os palpites disponiveis.')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Rodada 1/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /Rodada 1/ })).toHaveTextContent('0 para palpitar')
+    expect(getRoundMatchesList()).toBeInTheDocument()
+    expect(screen.queryByText('Historico de palpites')).not.toBeInTheDocument()
+  })
+
+  it('renders rodada and knockout tabs above active and closed games tabs', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-11T12:00:00-03:00'))
+
+    const pendingMatch = buildMatch({
+      id: 1,
+      homeTeam: { id: 10, name: 'Rodada pendente', code: 'RPD', flagUrl: null },
+      awayTeam: { id: 11, name: 'Visitante 1', code: 'V1', flagUrl: null },
+      matchDate: '2026-06-11T19:00:00Z',
+    })
+    const completeMatch = buildMatch({
+      id: 2,
+      homeTeam: pendingMatch.homeTeam,
+      awayTeam: { id: 20, name: 'Rodada completa', code: 'RCO', flagUrl: null },
+      matchDate: '2026-06-18T19:00:00Z',
+    })
+    const roundOf16Match = buildMatch({
+      id: 3,
+      homeTeam: { id: 30, name: 'Oitavas mandante', code: 'OIM', flagUrl: null },
+      awayTeam: { id: 31, name: 'Oitavas visitante', code: 'OIV', flagUrl: null },
+      matchDate: '2026-06-28T19:00:00Z',
+      stage: 'RoundOf16',
+    })
+
+    mockMatchesState({ data: [roundOf16Match, completeMatch, pendingMatch] })
+    mockMyBetsState({ data: [buildBet(completeMatch)] })
+
+    renderWithQueryClient(<MatchesPage />)
+
+    expect(screen.getByRole('tab', { name: /Rodada 1/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /Rodada 1/ })).toHaveTextContent('1 para palpitar')
+    expect(screen.getByRole('tab', { name: /Rodada 2/ })).toHaveTextContent('0 para palpitar')
+    expect(screen.getByRole('tab', { name: /Oitavas/ })).toHaveTextContent('1 para palpitar')
+    expect(screen.getByRole('tab', { name: 'Jogos (1)' })).toHaveAttribute('aria-selected', 'true')
+    expect(within(getRoundMatchesList()).getByText('Rodada pendente')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: /Rodada 2/ }))
+
+    expect(screen.getByRole('tab', { name: /Rodada 2/ })).toHaveAttribute('aria-selected', 'true')
+    expect(within(getRoundMatchesList('Rodada 2')).getByText('Rodada completa')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: /Oitavas/ }))
+
+    expect(within(getRoundMatchesList('Oitavas')).getByText('Oitavas mandante')).toBeInTheDocument()
   })
 
   it('moves matches older than five hours to closed games tab', () => {
