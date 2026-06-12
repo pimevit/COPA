@@ -21,6 +21,7 @@ public sealed class AdminMaintenanceApiTests
     {
         { "/admin/maintenance/teams/brasileirao-serie-a-2026", HttpMethod.Post },
         { "/admin/maintenance/teams/world-cup-2026", HttpMethod.Post },
+        { "/admin/maintenance/recalculate-points", HttpMethod.Post },
         { "/admin/maintenance/application-data", HttpMethod.Delete }
     };
 
@@ -135,6 +136,29 @@ public sealed class AdminMaintenanceApiTests
         Assert.Empty(await dbContext.Teams.ToListAsync());
     }
 
+    [Fact]
+    public async Task RecalculatePoints_WhenAdmin_ReplacesPointsForFinishedMatches()
+    {
+        using var factory = new AdminMaintenanceApiFactory();
+        var client = factory.CreateClient();
+        await authenticateAsync(client, "admin@example.com");
+        await seedFinishedMatchWithOutdatedPointsAsync(factory);
+
+        var response = await client.PostAsync("/admin/maintenance/recalculate-points", null);
+        var result = await readResultAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("points-recalculated", result.Action);
+        Assert.Equal(1, result.RecalculatedMatches);
+        Assert.Equal(1, result.RecalculatedBets);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var bet = await dbContext.Bets.SingleAsync();
+
+        Assert.Equal(3, bet.PointsEarned);
+    }
+
     private static async Task authenticateAsync(HttpClient client, string email)
     {
         var password = "secret123";
@@ -196,6 +220,38 @@ public sealed class AdminMaintenanceApiTests
         await dbContext.SaveChangesAsync();
     }
 
+    private static async Task seedFinishedMatchWithOutdatedPointsAsync(AdminMaintenanceApiFactory factory)
+    {
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var user = await dbContext.Users.SingleAsync();
+        var homeTeam = new Team { Name = "Brazil", Code = "BRA", FlagUrl = "https://example.test/bra.svg" };
+        var awayTeam = new Team { Name = "Argentina", Code = "ARG", FlagUrl = "https://example.test/arg.svg" };
+        var match = new Match
+        {
+            HomeTeam = homeTeam,
+            AwayTeam = awayTeam,
+            HomeGoals = 2,
+            AwayGoals = 0,
+            MatchDate = new DateTime(2026, 6, 11, 19, 0, 0, DateTimeKind.Utc),
+            Stage = Stage.Groups,
+            Status = MatchStatus.Finished,
+            AllowBetUntil = new DateTime(2026, 6, 11, 18, 45, 0, DateTimeKind.Utc)
+        };
+        var bet = new Bet
+        {
+            User = user,
+            Match = match,
+            HomeGoalsPrediction = 2,
+            AwayGoalsPrediction = 1,
+            PointsEarned = 2,
+            CreatedAt = new DateTime(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc)
+        };
+
+        dbContext.Bets.Add(bet);
+        await dbContext.SaveChangesAsync();
+    }
+
     private sealed record AuthTokenResponse(string AccessToken);
 
     private sealed record AdminMaintenanceResponseDto(
@@ -204,7 +260,9 @@ public sealed class AdminMaintenanceApiTests
         int UpdatedTeams,
         int DeletedBets,
         int DeletedMatches,
-        int DeletedTeams);
+        int DeletedTeams,
+        int RecalculatedMatches,
+        int RecalculatedBets);
 
     private sealed class AdminMaintenanceApiFactory : WebApplicationFactory<Program>
     {

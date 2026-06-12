@@ -1,11 +1,13 @@
 using System.Text.Json;
 using BolaoCopa.Domain.Entities;
+using BolaoCopa.Domain.Enums;
+using BolaoCopa.Domain.Scoring;
 using BolaoCopa.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace BolaoCopa.Infrastructure.Admin;
 
-public sealed class AdminMaintenanceService(AppDbContext dbContext)
+public sealed class AdminMaintenanceService(AppDbContext dbContext, ScoreCalculator scoreCalculator)
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -54,6 +56,44 @@ public sealed class AdminMaintenanceService(AppDbContext dbContext)
             bets.Count,
             matches.Count,
             teams.Count);
+    }
+
+    public async Task<AdminMaintenanceResponse> RecalculateFinishedMatchPointsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var matches = await dbContext.Matches
+            .Include(match => match.Bets)
+            .Where(match => match.Status == MatchStatus.Finished
+                && match.HomeGoals.HasValue
+                && match.AwayGoals.HasValue)
+            .ToListAsync(cancellationToken);
+
+        var recalculatedBets = 0;
+
+        foreach (var match in matches)
+        {
+            foreach (var bet in match.Bets)
+            {
+                bet.PointsEarned = scoreCalculator.CalculateScore(
+                    bet.HomeGoalsPrediction,
+                    bet.AwayGoalsPrediction,
+                    match.HomeGoals!.Value,
+                    match.AwayGoals!.Value,
+                    match.Stage);
+
+                recalculatedBets++;
+            }
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return AdminMaintenanceResponse.PointsRecalculated(
+            "points-recalculated",
+            matches.Count,
+            recalculatedBets);
     }
 
     private async Task<AdminMaintenanceResponse> importTeamsAsync(

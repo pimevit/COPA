@@ -33,6 +33,14 @@ public static class AdminMaintenanceEndpoints
             return Results.Ok(result);
         });
 
+        group.MapPost("/recalculate-points", async (
+            AdminMaintenanceService adminMaintenanceService,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await adminMaintenanceService.RecalculateFinishedMatchPointsAsync(cancellationToken);
+            return Results.Ok(result);
+        });
+
         return app;
     }
 }

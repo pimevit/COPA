@@ -215,10 +215,12 @@ function getRoundMatchesList(label = 'Rodada 1') {
 describe('MatchesPage', () => {
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
   })
 
   beforeEach(() => {
-    vi.useRealTimers()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-11T12:00:00-03:00'))
     mockedUseMatches.mockReset()
     mockedUseBetVisibility.mockReset()
     mockedUseMyBets.mockReset()

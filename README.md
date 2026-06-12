@@ -335,13 +335,15 @@ times e limpeza dos dados de jogo:
   20 clubes do Campeonato Brasileiro Serie A 2026.
 - `POST /admin/maintenance/teams/world-cup-2026`: insere/atualiza as 48
   selecoes classificadas para a Copa 2026.
+- `POST /admin/maintenance/recalculate-points`: recalcula `PointsEarned` dos
+  palpites de partidas finalizadas usando a regra atual de pontuacao.
 - `DELETE /admin/maintenance/application-data`: remove `Bets`, `Matches` e
   `Teams`, preservando `Users` e o historico de migrations.
 
 As importacoes sao idempotentes por `Team.Code`: codigo ausente e inserido;
 codigo existente atualiza `Name` e `FlagUrl`. A resposta retorna contadores:
-`action`, `insertedTeams`, `updatedTeams`, `deletedBets`, `deletedMatches` e
-`deletedTeams`.
+`action`, `insertedTeams`, `updatedTeams`, `deletedBets`, `deletedMatches`,
+`deletedTeams`, `recalculatedMatches` e `recalculatedBets`.
 
 Exemplo:
 
@@ -401,6 +403,9 @@ Regras implementadas:
 - Entram apenas palpites de partidas com resultado completo
   (`HomeGoals` e `AwayGoals` preenchidos).
 - `points` e a soma de `Bet.PointsEarned`; o endpoint nao recalcula pontuacao.
+- Se uma regra de pontuacao mudar depois de resultados ja lancados, use
+  `/admin/maintenance/recalculate-points` ou o botao administrativo
+  "Recalcular pontuacao" antes de conferir o ranking.
 - `tieBreakers` expoe os valores usados nos criterios visiveis de desempate.
 - Ordenacao:
   1. maior total de pontos;

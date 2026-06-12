@@ -18,6 +18,7 @@ import {
   useDeleteMatchMutation,
   useImportBrasileiraoTeamsMutation,
   useImportWorldCupTeamsMutation,
+  useRecalculateFinishedMatchPointsMutation,
   useUpdateMatchBettingLockMutation,
   useUpdateMatchResultMutation,
 } from '../hooks/useAdminMatches'
@@ -35,6 +36,7 @@ vi.mock('../hooks/useAdminMatches', async () => {
     useUpdateMatchResultMutation: vi.fn(),
     useImportBrasileiraoTeamsMutation: vi.fn(),
     useImportWorldCupTeamsMutation: vi.fn(),
+    useRecalculateFinishedMatchPointsMutation: vi.fn(),
     useClearApplicationDataMutation: vi.fn(),
   }
 })
@@ -60,6 +62,7 @@ const mockedUseCreateMatchMutation = vi.mocked(useCreateMatchMutation)
 const mockedUseDeleteMatchMutation = vi.mocked(useDeleteMatchMutation)
 const mockedUseImportBrasileiraoTeamsMutation = vi.mocked(useImportBrasileiraoTeamsMutation)
 const mockedUseImportWorldCupTeamsMutation = vi.mocked(useImportWorldCupTeamsMutation)
+const mockedUseRecalculateFinishedMatchPointsMutation = vi.mocked(useRecalculateFinishedMatchPointsMutation)
 const mockedUseUpdateMatchBettingLockMutation = vi.mocked(useUpdateMatchBettingLockMutation)
 const mockedUseUpdateMatchResultMutation = vi.mocked(useUpdateMatchResultMutation)
 
@@ -102,6 +105,7 @@ describe('AdminPage', () => {
   const deleteMatch = vi.fn()
   const importBrasileiraoTeams = vi.fn()
   const importWorldCupTeams = vi.fn()
+  const recalculatePoints = vi.fn()
   const updateMatchNotice = vi.fn()
   const updateBettingLock = vi.fn()
   const updateResult = vi.fn()
@@ -116,6 +120,7 @@ describe('AdminPage', () => {
     deleteMatch.mockReset()
     importBrasileiraoTeams.mockReset()
     importWorldCupTeams.mockReset()
+    recalculatePoints.mockReset()
     updateMatchNotice.mockReset()
     updateBettingLock.mockReset()
     updateResult.mockReset()
@@ -165,6 +170,10 @@ describe('AdminPage', () => {
       isPending: false,
       mutateAsync: clearApplicationData,
     } as unknown as ReturnType<typeof useClearApplicationDataMutation>)
+    mockedUseRecalculateFinishedMatchPointsMutation.mockReturnValue({
+      isPending: false,
+      mutateAsync: recalculatePoints,
+    } as unknown as ReturnType<typeof useRecalculateFinishedMatchPointsMutation>)
     mockedUseUpdateMatchNoticeMutation.mockReturnValue({
       isPending: false,
       mutateAsync: updateMatchNotice,
@@ -180,6 +189,7 @@ describe('AdminPage', () => {
     expect(screen.getByRole('heading', { name: 'Manutencao de dados' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Inserir Brasileirao Serie A 2026' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Inserir Copa 2026' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Recalcular pontuacao' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Limpar dados' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Cadastrar partida' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Gerenciar partidas' })).toBeInTheDocument()
@@ -236,6 +246,8 @@ describe('AdminPage', () => {
       deletedBets: 0,
       deletedMatches: 0,
       deletedTeams: 0,
+      recalculatedMatches: 0,
+      recalculatedBets: 0,
     })
 
     renderWithProviders(<AdminPage />)
@@ -254,6 +266,8 @@ describe('AdminPage', () => {
       deletedBets: 0,
       deletedMatches: 0,
       deletedTeams: 0,
+      recalculatedMatches: 0,
+      recalculatedBets: 0,
     })
 
     renderWithProviders(<AdminPage />)
@@ -275,6 +289,39 @@ describe('AdminPage', () => {
     confirmSpy.mockRestore()
   })
 
+  it('does not recalculate points when confirmation is cancelled', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    renderWithProviders(<AdminPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recalcular pontuacao' }))
+
+    expect(recalculatePoints).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+
+  it('recalculates finished match points after confirmation', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    recalculatePoints.mockResolvedValue({
+      action: 'points-recalculated',
+      insertedTeams: 0,
+      updatedTeams: 0,
+      deletedBets: 0,
+      deletedMatches: 0,
+      deletedTeams: 0,
+      recalculatedMatches: 2,
+      recalculatedBets: 7,
+    })
+
+    renderWithProviders(<AdminPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recalcular pontuacao' }))
+
+    await waitFor(() => expect(recalculatePoints).toHaveBeenCalledTimes(1))
+    expect(screen.getByText('Pontuacao recalculada: 7 palpites em 2 partidas finalizadas.')).toBeInTheDocument()
+    confirmSpy.mockRestore()
+  })
+
   it('clears application data after confirmation', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
     clearApplicationData.mockResolvedValue({
@@ -284,6 +331,8 @@ describe('AdminPage', () => {
       deletedBets: 1,
       deletedMatches: 2,
       deletedTeams: 3,
+      recalculatedMatches: 0,
+      recalculatedBets: 0,
     })
 
     renderWithProviders(<AdminPage />)

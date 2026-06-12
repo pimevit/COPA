@@ -7,6 +7,8 @@ export type AdminMaintenanceResponse = {
   deletedBets: number
   deletedMatches: number
   deletedTeams: number
+  recalculatedMatches: number
+  recalculatedBets: number
 }
 
 export function importBrasileiraoSerieA2026Teams(): Promise<AdminMaintenanceResponse> {
@@ -19,4 +21,8 @@ export function importWorldCup2026Teams(): Promise<AdminMaintenanceResponse> {
 
 export function clearApplicationData(): Promise<AdminMaintenanceResponse> {
   return apiClient.delete<AdminMaintenanceResponse>('/admin/maintenance/application-data')
+}
+
+export function recalculateFinishedMatchPoints(): Promise<AdminMaintenanceResponse> {
+  return apiClient.post<AdminMaintenanceResponse>('/admin/maintenance/recalculate-points')
 }

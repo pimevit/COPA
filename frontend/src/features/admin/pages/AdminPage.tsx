@@ -23,6 +23,7 @@ import {
   useDeleteMatchMutation,
   useImportBrasileiraoTeamsMutation,
   useImportWorldCupTeamsMutation,
+  useRecalculateFinishedMatchPointsMutation,
   useUpdateMatchBettingLockMutation,
   useUpdateMatchResultMutation,
 } from '../hooks/useAdminMatches'
@@ -54,6 +55,7 @@ export function AdminPage() {
   const importBrasileiraoMutation = useImportBrasileiraoTeamsMutation()
   const importWorldCupMutation = useImportWorldCupTeamsMutation()
   const clearApplicationDataMutation = useClearApplicationDataMutation()
+  const recalculatePointsMutation = useRecalculateFinishedMatchPointsMutation()
   const updateMatchNoticeMutation = useUpdateMatchNoticeMutation()
   const [homeTeamId, setHomeTeamId] = useState('')
   const [awayTeamId, setAwayTeamId] = useState('')
@@ -264,9 +266,22 @@ export function AdminPage() {
     await runMaintenanceAction(() => clearApplicationDataMutation.mutateAsync())
   }
 
+  async function handleRecalculatePoints() {
+    var confirmed = window.confirm(
+      'Recalcular a pontuacao de todos os palpites das partidas finalizadas? Os pontos gravados serao substituidos pela regra atual.',
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    await runMaintenanceAction(() => recalculatePointsMutation.mutateAsync())
+  }
+
   const isMaintenancePending =
     importBrasileiraoMutation.isPending ||
     importWorldCupMutation.isPending ||
+    recalculatePointsMutation.isPending ||
     clearApplicationDataMutation.isPending
 
   return (
@@ -342,7 +357,7 @@ export function AdminPage() {
 
         <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
           <h2 className="text-lg font-semibold tracking-normal">Manutencao de dados</h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
             <button
               className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400 dark:focus:ring-offset-slate-950"
               disabled={isMaintenancePending}
@@ -358,6 +373,14 @@ export function AdminPage() {
               type="button"
             >
               {importWorldCupMutation.isPending ? 'Inserindo...' : 'Inserir Copa 2026'}
+            </button>
+            <button
+              className="rounded-md border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 dark:border-amber-900 dark:text-amber-300 dark:hover:bg-amber-950 dark:focus:ring-offset-slate-950"
+              disabled={isMaintenancePending}
+              onClick={() => void handleRecalculatePoints()}
+              type="button"
+            >
+              {recalculatePointsMutation.isPending ? 'Recalculando...' : 'Recalcular pontuacao'}
             </button>
             <button
               className="rounded-md border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950 dark:focus:ring-offset-slate-950"
@@ -661,6 +684,10 @@ function FeedbackMessage({ message, tone }: { message: string; tone: 'error' | '
 function formatMaintenanceResult(result: AdminMaintenanceResponse): string {
   if (result.action === 'application-data-reset') {
     return `Dados limpos: ${result.deletedBets} palpites, ${result.deletedMatches} partidas e ${result.deletedTeams} times removidos.`
+  }
+
+  if (result.action === 'points-recalculated') {
+    return `Pontuacao recalculada: ${result.recalculatedBets} palpites em ${result.recalculatedMatches} partidas finalizadas.`
   }
 
   return `Times processados: ${result.insertedTeams} inseridos e ${result.updatedTeams} atualizados.`

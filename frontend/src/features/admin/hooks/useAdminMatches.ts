@@ -16,6 +16,7 @@ import {
   clearApplicationData,
   importBrasileiraoSerieA2026Teams,
   importWorldCup2026Teams,
+  recalculateFinishedMatchPoints,
 } from '../api/adminMaintenanceApi'
 import { fetchTeams } from '../api/teamsApi'
 
@@ -80,5 +81,11 @@ export function useImportWorldCupTeamsMutation() {
 export function useClearApplicationDataMutation() {
   return useMutation({
     mutationFn: clearApplicationData,
+  })
+}
+
+export function useRecalculateFinishedMatchPointsMutation() {
+  return useMutation({
+    mutationFn: recalculateFinishedMatchPoints,
   })
 }

@@ -378,6 +378,8 @@ O resultado são 18 tarefas em 4 blocos: Fundação (T01–T03), Backend (T04–
 **Critérios de aceite:**
 - Definir resultado atualiza `PointsEarned` de todos os palpites da partida corretamente.
 - Corrigir o resultado recalcula os pontos.
+- Mudancas posteriores na regra de pontuacao podem exigir recalculo administrativo
+  dos palpites de partidas finalizadas ja avaliadas.
 - Endpoint protegido conforme decisão de role.
 
 **Prompt sugerido para IA:**
@@ -639,6 +641,11 @@ T05, T07 e T12 têm baixo acoplamento e podem ser antecipadas/paralelizadas se h
 **Datas e fuso.** Persista tudo em UTC e converta na borda (frontend). O fechamento de palpites e a visibilidade dependem disso; tratar fuso errado é a causa mais provável de bug funcional aqui (dúvidas 3.4–3.6).
 
 **Pontuação como ponto único de verdade.** O `ScoreCalculator` (T07) deve ser a única fonte da regra. Ranking (T10) e estatísticas (T11) devem reutilizá-lo ou reutilizar sua classificação de acerto, nunca reimplementar. Isso evita divergência entre telas. Resolver a dúvida 3.1 cedo: ela afeta pontuação, ranking e estatísticas simultaneamente.
+
+**Recálculo operacional.** O ranking é calculado on-demand a partir de `PointsEarned`;
+quando a regra de pontuação muda depois de resultados já lançados, execute o
+recálculo administrativo para substituir os pontos gravados nos palpites de
+partidas finalizadas.
 
 **Idempotência.** Recálculo de pontos (T09) e seed (T03) devem ser idempotentes. Relançar resultado ou rodar seed duas vezes não pode corromper dados.
 
