@@ -25,7 +25,9 @@ public sealed class AuthService(
         var existingUser = await userRepository.FindByEmailAsync(normalizedEmail, cancellationToken);
         if (existingUser is not null)
         {
-            return AuthResult<AuthTokenResponse>.Failure(AuthErrorCode.EmailAlreadyExists, "Email is already registered.");
+            return AuthResult<AuthTokenResponse>.Failure(
+                AuthErrorCode.EmailAlreadyExists,
+                "Email is already registered. Ask the admin to recover the password.");
         }
 
         var now = clock.UtcNow;

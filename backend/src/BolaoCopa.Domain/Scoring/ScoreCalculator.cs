@@ -41,15 +41,22 @@ public sealed class ScoreCalculator
             return 5;
         }
 
-        if (getOutcome(homeGoalsPrediction, awayGoalsPrediction) == getOutcome(homeGoalsResult, awayGoalsResult))
+        var matchedHomeGoals = homeGoalsPrediction == homeGoalsResult;
+        var matchedAwayGoals = awayGoalsPrediction == awayGoalsResult;
+        var matchedExactlyOneTeamGoals = matchedHomeGoals ^ matchedAwayGoals;
+        var matchedOutcome = getOutcome(homeGoalsPrediction, awayGoalsPrediction) == getOutcome(homeGoalsResult, awayGoalsResult);
+
+        if (matchedOutcome && matchedExactlyOneTeamGoals)
+        {
+            return 3;
+        }
+
+        if (matchedOutcome)
         {
             return 2;
         }
 
-        var matchedHomeGoals = homeGoalsPrediction == homeGoalsResult;
-        var matchedAwayGoals = awayGoalsPrediction == awayGoalsResult;
-
-        return matchedHomeGoals ^ matchedAwayGoals ? 1 : 0;
+        return matchedExactlyOneTeamGoals ? 1 : 0;
     }
 
     private static MatchOutcome getOutcome(int homeGoals, int awayGoals)

@@ -112,7 +112,7 @@ public sealed class MatchResultsApiTests
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var bet = await dbContext.Bets.SingleAsync();
 
-        Assert.Equal(2, bet.PointsEarned);
+        Assert.Equal(3, bet.PointsEarned);
     }
 
     [Fact]

@@ -1,6 +1,8 @@
+import { useId, useState } from 'react'
+
 import type { RankingItem } from '../../../types/ranking'
 import { formatRankingPoints, formatRankingPosition } from '../utils/formatting'
-import { RankingTieBreakersTooltip } from './RankingTieBreakersTooltip'
+import { RankingTieBreakersDetails, RankingTieBreakersTooltip } from './RankingTieBreakersTooltip'
 
 type TopThreeHighlightProps = {
   items: readonly RankingItem[]
@@ -35,25 +37,42 @@ export function TopThreeHighlight({ items }: TopThreeHighlightProps) {
       </div>
       <ol className="grid gap-3 sm:grid-cols-3" aria-label="Top 3 do ranking">
         {topThree.map((item) => (
-          <li key={item.userId}>
-            <article className={`rounded-lg border p-4 ${getPositionClasses(item.position)}`}>
-              <div className="flex items-start justify-between gap-3">
-                <span className="text-lg font-semibold tabular-nums">{formatRankingPosition(item.position)}</span>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-md bg-white/70 px-2 py-1 text-xs font-semibold text-slate-900 dark:bg-black/20 dark:text-white">
-                    {formatRankingPoints(item.points)}
-                  </span>
-                  <RankingTieBreakersTooltip item={item} />
-                </div>
-              </div>
-              <p className="mt-4 truncate text-base font-semibold">{item.name}</p>
-              {item.isCurrentUser ? (
-                <p className="mt-2 text-xs font-semibold uppercase tracking-normal">voce</p>
-              ) : null}
-            </article>
-          </li>
+          <TopThreeItem item={item} key={item.userId} />
         ))}
       </ol>
     </section>
+  )
+}
+
+function TopThreeItem({ item }: { item: RankingItem }) {
+  const [showMobileTieBreakers, setShowMobileTieBreakers] = useState(false)
+  const mobileTieBreakersId = useId()
+
+  return (
+    <li>
+      <article className={`rounded-lg border p-4 ${getPositionClasses(item.position)}`}>
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-lg font-semibold tabular-nums">{formatRankingPosition(item.position)}</span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-md bg-white/70 px-2 py-1 text-xs font-semibold text-slate-900 dark:bg-black/20 dark:text-white">
+              {formatRankingPoints(item.points)}
+            </span>
+            <RankingTieBreakersTooltip
+              item={item}
+              isMobileExpanded={showMobileTieBreakers}
+              mobileDetailsId={mobileTieBreakersId}
+              onToggleMobile={() => setShowMobileTieBreakers((isExpanded) => !isExpanded)}
+            />
+          </div>
+        </div>
+        <p className="mt-4 truncate text-base font-semibold">{item.name}</p>
+        {item.isCurrentUser ? <p className="mt-2 text-xs font-semibold uppercase tracking-normal">voce</p> : null}
+        {showMobileTieBreakers ? (
+          <div className="mt-3 sm:hidden">
+            <RankingTieBreakersDetails id={mobileTieBreakersId} item={item} />
+          </div>
+        ) : null}
+      </article>
+    </li>
   )
 }

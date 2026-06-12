@@ -2,6 +2,7 @@ import { AuthenticatedNav } from '../../../routes/AuthenticatedNav'
 
 const scoreRows = [
   ['Placar exato', '5'],
+  ['Acertou vencedor ou empate e os gols de apenas um time', '3'],
   ['Acertou apenas o vencedor ou empate', '2'],
   ['Acertou os gols de apenas um time', '1'],
   ['Errou tudo', '0'],

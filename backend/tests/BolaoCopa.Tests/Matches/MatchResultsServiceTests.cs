@@ -37,7 +37,7 @@ public sealed class MatchResultsServiceTests
         await service.UpdateResultAsync(1, new UpdateMatchResultRequest(2, 1));
         await service.UpdateResultAsync(1, new UpdateMatchResultRequest(2, 0));
 
-        Assert.Equal(2, match.Bets.Single().PointsEarned);
+        Assert.Equal(3, match.Bets.Single().PointsEarned);
     }
 
     [Fact]

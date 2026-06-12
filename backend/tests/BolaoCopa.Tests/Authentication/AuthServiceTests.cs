@@ -54,6 +54,9 @@ public sealed class AuthServiceTests
 
         Assert.False(result.Succeeded);
         Assert.Equal(AuthErrorCode.EmailAlreadyExists, result.ErrorCode);
+        Assert.Equal(
+            "Email is already registered. Ask the admin to recover the password.",
+            result.ErrorMessage);
     }
 
     [Fact]

@@ -29,6 +29,7 @@ describe('RulesPage', () => {
 
     expect(screen.getByRole('heading', { name: 'Regras' })).toBeInTheDocument()
     expect(screen.getByText('Placar exato')).toBeInTheDocument()
+    expect(screen.getByText('Acertou vencedor ou empate e os gols de apenas um time')).toBeInTheDocument()
     expect(screen.getByText('Final')).toBeInTheDocument()
     expect(
       screen.getByText(

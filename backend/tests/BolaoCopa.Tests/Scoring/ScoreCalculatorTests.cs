@@ -86,20 +86,27 @@ public sealed class ScoreCalculatorTests
     }
 
     [Fact]
-    public void CalculateScore_WhenCorrectWinnerAlsoMatchesOneTeamGoals_UsesWinnerPrecedence()
+    public void CalculateScore_WhenCorrectWinnerAlsoMatchesOneTeamGoals_ReturnsThreePoints()
     {
         var score = calculator.CalculateScore(2, 1, 2, 0, Stage.Groups);
 
-        Assert.Equal(2, score);
+        Assert.Equal(3, score);
     }
 
     [Fact]
-    public void CalculateScore_AmbiguousExample3PendingQuestion31_AssumesWinnerPrecedenceOverOneTeamGoals()
+    public void CalculateScore_WhenCombinedHitIsInKnockoutStage_AppliesStageMultiplier()
     {
-        // Pending business confirmation: backlog question 3.1. Current assumption is winner > one team's goals.
+        var score = calculator.CalculateScore(2, 1, 2, 0, Stage.QuarterFinals);
+
+        Assert.Equal(9, score);
+    }
+
+    [Fact]
+    public void CalculateScore_Example3ConfirmedRule_ReturnsThreePointsForOutcomeAndOneTeamGoals()
+    {
         var score = calculator.CalculateScore(2, 1, 2, 0, Stage.Groups);
 
-        Assert.Equal(2, score);
+        Assert.Equal(3, score);
     }
 
     [Theory]

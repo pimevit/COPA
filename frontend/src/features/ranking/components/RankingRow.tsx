@@ -1,12 +1,16 @@
+import { useId, useState } from 'react'
+
 import type { RankingItem } from '../../../types/ranking'
 import { formatRankingPoints, formatRankingPosition } from '../utils/formatting'
-import { RankingTieBreakersTooltip } from './RankingTieBreakersTooltip'
+import { RankingTieBreakersDetails, RankingTieBreakersTooltip } from './RankingTieBreakersTooltip'
 
 type RankingRowProps = {
   item: RankingItem
 }
 
 export function RankingRow({ item }: RankingRowProps) {
+  const [showMobileTieBreakers, setShowMobileTieBreakers] = useState(false)
+  const mobileTieBreakersId = useId()
   const rowClasses = item.isCurrentUser
     ? 'border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-50'
     : 'border-slate-200 bg-white text-slate-950 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50'
@@ -37,9 +41,19 @@ export function RankingRow({ item }: RankingRowProps) {
           <span className="min-w-20 rounded-md bg-slate-100 px-2 py-1 text-center text-sm font-semibold text-slate-800 dark:bg-slate-900 dark:text-slate-100">
             {formatRankingPoints(item.points)}
           </span>
-          <RankingTieBreakersTooltip item={item} />
+          <RankingTieBreakersTooltip
+            item={item}
+            isMobileExpanded={showMobileTieBreakers}
+            mobileDetailsId={mobileTieBreakersId}
+            onToggleMobile={() => setShowMobileTieBreakers((isExpanded) => !isExpanded)}
+          />
         </div>
       </div>
+      {showMobileTieBreakers ? (
+        <div className="mt-3 sm:hidden">
+          <RankingTieBreakersDetails id={mobileTieBreakersId} item={item} />
+        </div>
+      ) : null}
     </article>
   )
 }

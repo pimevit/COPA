@@ -418,10 +418,10 @@ Regras implementadas:
   todos os itens.
 - `isTop3` fica `true` para posicoes 1 a 3.
 
-Decisoes temporarias ainda pendentes de confirmacao do backlog:
+Decisoes do backlog:
 
-- Duvida 3.1: vencedor/empate correto prevalece sobre gols de um time no
-  calculo de pontos ja gravado em `PointsEarned`.
+- Duvida 3.1: confirmada como 3 pontos base quando o palpite combina
+  vencedor/empate correto e gols de exatamente um time.
 - Duvida 3.2: "acerto" para sequencia e `PointsEarned > 0`.
 
 Fora da Tarefa 10: frontend, ranking persistido, cache distribuido,
@@ -486,8 +486,9 @@ nao depende de EF Core, HTTP, banco, DI obrigatorio ou horario.
 Regra base nao cumulativa, sempre usando a maior categoria aplicavel:
 
 - placar exato: 5 pontos
-- vencedor/empate correto: 2 pontos
-- gols de exatamente um time: 1 ponto
+- vencedor/empate correto e gols de exatamente um time: 3 pontos
+- apenas vencedor/empate correto: 2 pontos
+- apenas gols de exatamente um time: 1 ponto
 - erro total: 0 pontos
 
 Multiplicadores por fase:
@@ -502,9 +503,9 @@ A pontuacao final e `pontuacao base x multiplicador`. Gols negativos e `Stage`
 invalido geram `ArgumentOutOfRangeException`; resultado incompleto fica fora do
 contrato porque o metodo recebe gols finais como inteiros obrigatorios.
 
-Decisao temporaria: o caso ambiguo da duvida 3.1, palpite `2x1` e resultado
-`2x0`, retorna 2 pontos base por vencedor correto. Essa decisao esta coberta em
-teste e deve ser revisada quando a regra for confirmada.
+Decisao confirmada: o caso antes ambiguo da duvida 3.1, palpite `2x1` e
+resultado `2x0`, retorna 3 pontos base porque combina vencedor correto e gols
+de exatamente um time.
 
 Fora da Tarefa 07: ranking e estatisticas.
 
@@ -900,8 +901,8 @@ Comportamento implementado:
 - a tela preserva a ordem retornada pela API;
 - `position`, `points`, `isTop3` e `isCurrentUser` sao usados diretamente do
   backend;
-- os criterios de desempate de cada usuario aparecem em tooltip usando
-  `tieBreakers`;
+- os criterios de desempate de cada usuario aparecem em tooltip no desktop e
+  em painel expansivel por botao no mobile, usando `tieBreakers`;
 - o frontend nao recalcula pontos, desempates nem Top 3;
 - Top 3 aparece em destaque quando a API marca `isTop3`;
 - a linha do usuario logado aparece destacada quando `isCurrentUser` e

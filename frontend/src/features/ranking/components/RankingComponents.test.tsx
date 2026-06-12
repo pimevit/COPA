@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { RankingList } from './RankingList'
@@ -71,12 +71,33 @@ describe('RankingRow', () => {
   it('renders tie-breaker tooltip data', () => {
     render(<RankingRow item={rankingItems[1]} />)
 
-    expect(screen.getByRole('button', { name: 'Criterios de desempate de Bruno Costa' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mostrar criterios de desempate de Bruno Costa' })).toBeInTheDocument()
     expect(screen.getByRole('tooltip')).toHaveTextContent('18 pts')
     expect(screen.getByRole('tooltip')).toHaveTextContent('Placares exatos: 2')
     expect(screen.getByRole('tooltip')).toHaveTextContent('Acertos de vencedor/empate: 5')
     expect(screen.getByRole('tooltip')).toHaveTextContent('Melhor sequencia: 3')
     expect(screen.getByRole('tooltip')).toHaveTextContent('Primeiro palpite:')
+  })
+
+  it('toggles tie-breaker details inline for mobile', () => {
+    render(<RankingRow item={rankingItems[1]} />)
+
+    const button = screen.getByRole('button', { name: 'Mostrar criterios de desempate de Bruno Costa' })
+
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('region', { name: 'Criterios de desempate de Bruno Costa' })).not.toBeInTheDocument()
+
+    fireEvent.click(button)
+
+    expect(button).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('region', { name: 'Criterios de desempate de Bruno Costa' })).toHaveTextContent(
+      'Placares exatos: 2',
+    )
+
+    fireEvent.click(button)
+
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('region', { name: 'Criterios de desempate de Bruno Costa' })).not.toBeInTheDocument()
   })
 })
 
@@ -103,9 +124,9 @@ describe('TopThreeHighlight', () => {
   it('renders tie-breaker tooltip controls for highlighted users', () => {
     render(<TopThreeHighlight items={rankingItems} />)
 
-    expect(screen.getByRole('button', { name: 'Criterios de desempate de Ana Silva' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Criterios de desempate de Bruno Costa' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Criterios de desempate de Carla Souza' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mostrar criterios de desempate de Ana Silva' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mostrar criterios de desempate de Bruno Costa' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mostrar criterios de desempate de Carla Souza' })).toBeInTheDocument()
   })
 })
 

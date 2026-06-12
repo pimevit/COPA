@@ -78,9 +78,9 @@ export function mapRegisterError(error: unknown): AuthErrorMessages {
   if (error instanceof ApiError) {
     if (error.status === 409) {
       return {
-        general: 'Este e-mail ja esta cadastrado.',
+        general: 'Este e-mail ja esta cadastrado. Fale com o admin para recuperar a senha.',
         fieldErrors: {
-          email: 'Use outro e-mail ou entre com a conta existente.',
+          email: 'Fale com o admin para recuperar a senha desta conta.',
         },
       }
     }

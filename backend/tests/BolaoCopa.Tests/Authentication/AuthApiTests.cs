@@ -70,6 +70,30 @@ public sealed class AuthApiTests
     }
 
     [Fact]
+    public async Task Register_WithExistingEmail_ReturnsConflictAndPasswordRecoveryMessage()
+    {
+        using var factory = new AuthApiFactory();
+        var client = createClientWithoutCookies(factory);
+
+        await registerAsync(client);
+
+        var response = await client.PostAsJsonAsync("/auth/register", new
+        {
+            name = "Other User",
+            email = "USER@example.com",
+            password = "secret123"
+        });
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("Email already registered.", document.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            "Email is already registered. Ask the admin to recover the password.",
+            document.RootElement.GetProperty("detail").GetString());
+    }
+
+    [Fact]
     public async Task Refresh_WithValidCookie_ReturnsNewAccessTokenAndRotatesRefreshToken()
     {
         using var factory = new AuthApiFactory();

@@ -43,6 +43,7 @@ Stack-alvo: backend **ASP.NET Core Web API + EF Core + JWT**, frontend **React +
 | Situação | Pontos |
 |---|---|
 | Placar exato | 5 |
+| Acertou vencedor/empate e os gols de apenas um dos times | 3 |
 | Acertou apenas o vencedor/empate | 2 |
 | Acertou os gols de apenas um dos times | 1 |
 | Errou tudo | 0 |
@@ -73,10 +74,10 @@ Stack-alvo: backend **ASP.NET Core Web API + EF Core + JWT**, frontend **React +
 
 Itens abaixo são bloqueantes ou de alto risco de retrabalho. Pergunta formulada para envio direto ao PM/tech lead.
 
-### 3.1 — Inconsistência na regra de pontuação (Exemplo 3) — CRÍTICO
-**Problema:** O Exemplo 3 (palpite Brasil 2x1, resultado Brasil 2x0 → 1 ponto) contradiz a regra "não cumulativa, maior acerto prevalece": nesse caso o vencedor (Brasil) foi acertado, o que valeria 2 pontos, não 1.
-**Categoria:** Regra de negócio implícita / inconsistência.
-**Pergunta:** No exemplo Brasil 2x1 (palpite) vs Brasil 2x0 (resultado), o vencedor foi acertado — a pontuação correta é 2 (vencedor) ou 1 (gols de um time)? Qual a ordem de precedência exata entre vencedor e gols de um time?
+### 3.1 — Regra de pontuação combinada — RESOLVIDO
+**Decisão:** No exemplo Brasil 2x1 (palpite) vs Brasil 2x0 (resultado), o jogador acertou o vencedor e os gols de um time, portanto recebe 3 pontos base.
+**Categoria:** Regra de negócio confirmada.
+**Precedência:** placar exato (5) > vencedor/empate + gols de um time (3) > apenas vencedor/empate (2) > apenas gols de um time (1) > erro total (0).
 
 ### 3.2 — Definição de "acerto" para sequência e estatísticas
 **Problema:** "Melhor sequência de acertos consecutivos" e "percentual de acertos" não definem o que conta como acerto.
@@ -319,17 +320,17 @@ O resultado são 18 tarefas em 4 blocos: Fundação (T01–T03), Backend (T04–
 **Escopo:**
 - Função pura `calculateScore(prediction, result, stage)` retornando pontos finais (base × multiplicador).
 - Regra base não cumulativa (maior acerto prevalece) e tabela de multiplicadores.
-- Testes unitários cobrindo: placar exato, vencedor, gols de um time, erro total, empate, e cada multiplicador de fase. Incluir um teste explícito para o caso ambíguo do Exemplo 3 (ver dúvida 3.1), marcado como pendente de confirmação.
+- Testes unitários cobrindo: placar exato, vencedor, vencedor + gols de um time, gols de um time, erro total, empate, e cada multiplicador de fase.
 
 **Fora do escopo:** Persistência, endpoints, recálculo em massa.
 
 **Critérios de aceite:**
 - Serviço é uma classe de domínio pura (sem EF/HTTP).
 - Testes verdes para todos os cenários da tabela de regras e multiplicadores.
-- O caso do Exemplo 3 tem teste documentando a decisão tomada e a dúvida 3.1.
+- O caso do Exemplo 3 tem teste documentando a regra confirmada de 3 pontos.
 
 **Prompt sugerido para IA:**
-> No projeto `Domain`, crie um serviço de pontuação puro `ScoreCalculator` com um método `calculateScore(homeGoalsPrediction, awayGoalsPrediction, homeGoalsResult, awayGoalsResult, stage)` que retorna a pontuação final = base × multiplicador. Base (não cumulativa, maior acerto prevalece): placar exato = 5, vencedor/empate correto = 2, gols de exatamente um time = 1, caso contrário 0. Multiplicadores: Groups x1, RoundOf16 x2, QuarterFinals x3, SemiFinals x4, Final x5. Escreva testes unitários (xUnit) para cada situação e cada multiplicador. Inclua um teste para o caso "palpite 2x1, resultado 2x0" deixando claro no nome do teste que há ambiguidade entre 2 (vencedor) e 1 (gols de um time) pendente de confirmação; assuma a precedência vencedor > gols de um time e comente isso. Sem dependência de banco ou HTTP.
+> No projeto `Domain`, crie um serviço de pontuação puro `ScoreCalculator` com um método `calculateScore(homeGoalsPrediction, awayGoalsPrediction, homeGoalsResult, awayGoalsResult, stage)` que retorna a pontuação final = base × multiplicador. Base (não cumulativa, maior acerto prevalece): placar exato = 5, vencedor/empate correto + gols de exatamente um time = 3, apenas vencedor/empate correto = 2, gols de exatamente um time = 1, caso contrário 0. Multiplicadores: Groups x1, RoundOf16 x2, QuarterFinals x3, SemiFinals x4, Final x5. Escreva testes unitários (xUnit) para cada situação e cada multiplicador. Inclua um teste para o caso "palpite 2x1, resultado 2x0", que deve retornar 3 pontos base. Sem dependência de banco ou HTTP.
 
 ---
 
