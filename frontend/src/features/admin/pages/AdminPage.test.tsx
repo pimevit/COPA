@@ -75,7 +75,7 @@ const match: MatchListItem = {
   id: 10,
   homeTeam: teams[0],
   awayTeam: teams[1],
-  matchDate: '2026-06-11T19:00:00Z',
+  matchDate: '2099-06-11T19:00:00Z',
   stage: 'Groups',
   status: 'Scheduled',
   homeGoals: null,
@@ -112,6 +112,7 @@ describe('AdminPage', () => {
 
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
   })
 
   beforeEach(() => {
@@ -193,11 +194,63 @@ describe('AdminPage', () => {
     expect(screen.getByRole('button', { name: 'Limpar dados' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Cadastrar partida' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Gerenciar partidas' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Jogos em aberto (1)' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Jogos acabados (0)' })).toBeInTheDocument()
     expect(screen.getByText('Brazil x Argentina')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Gerenciar usuarios' })).toHaveAttribute('href', '/admin/users')
     expect(screen.getByRole('button', { name: 'Bloquear palpites' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Excluir se sem palpites' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Excluir com palpites' })).toBeInTheDocument()
+  })
+
+  it('moves previous-day and finished matches to finished games tab', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-14T12:00:00Z'))
+
+    const activeMatch: MatchListItem = {
+      ...match,
+      id: 20,
+      homeTeam: { ...teams[0], name: 'Jogo aberto', code: 'JAB' },
+      matchDate: '2026-06-14T19:00:00Z',
+    }
+    const previousDayMatch: MatchListItem = {
+      ...match,
+      id: 21,
+      homeTeam: { ...teams[0], name: 'Jogo antigo', code: 'JAN' },
+      matchDate: '2026-06-12T19:00:00Z',
+      isBettingOpen: false,
+    }
+    const finishedMatch: MatchListItem = {
+      ...match,
+      id: 22,
+      homeTeam: { ...teams[0], name: 'Resultado lancado', code: 'RLA' },
+      matchDate: '2026-06-14T10:00:00Z',
+      status: 'Finished',
+      homeGoals: 1,
+      awayGoals: 0,
+      isBettingOpen: false,
+    }
+
+    mockedUseAdminMatches.mockReturnValue({
+      data: [previousDayMatch, activeMatch, finishedMatch],
+      isError: false,
+      isPending: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useAdminMatches>)
+
+    renderWithProviders(<AdminPage />)
+
+    expect(screen.getByRole('tab', { name: 'Jogos em aberto (1)' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Jogos acabados (2)' })).toBeInTheDocument()
+    expect(screen.getByText('Jogo aberto x Argentina')).toBeInTheDocument()
+    expect(screen.queryByText('Jogo antigo x Argentina')).not.toBeInTheDocument()
+    expect(screen.queryByText('Resultado lancado x Argentina')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Jogos acabados (2)' }))
+
+    expect(screen.getByText('Jogo antigo x Argentina')).toBeInTheDocument()
+    expect(screen.getByText('Resultado lancado x Argentina')).toBeInTheDocument()
+    expect(screen.queryByText('Jogo aberto x Argentina')).not.toBeInTheDocument()
   })
 
   it('saves the matches notice', async () => {

@@ -30,6 +30,14 @@ import {
 
 const stages: MatchStage[] = ['Groups', 'RoundOf16', 'QuarterFinals', 'SemiFinals', 'Final']
 const noticeMaxLength = 500
+const nowRefreshIntervalMs = 60_000
+
+type AdminMatchesTab = 'active' | 'finished'
+
+type AdminMatchGroups = {
+  activeMatches: MatchListItem[]
+  finishedMatches: MatchListItem[]
+}
 
 type ResultRowProps = {
   match: MatchListItem
@@ -72,6 +80,8 @@ export function AdminPage() {
   const [noticeMessage, setNoticeMessage] = useState('')
   const [noticeError, setNoticeError] = useState<string | null>(null)
   const [noticeSuccess, setNoticeSuccess] = useState<string | null>(null)
+  const [selectedMatchTab, setSelectedMatchTab] = useState<AdminMatchesTab>('active')
+  const [now, setNow] = useState(() => new Date())
 
   const teams = teamsQuery.data ?? []
   const matches = useMemo(
@@ -81,6 +91,15 @@ export function AdminPage() {
       ),
     [matchesQuery.data],
   )
+  const matchGroups = useMemo(() => splitAdminMatchesByFinishedState(matches, now), [matches, now])
+  const visibleMatches =
+    selectedMatchTab === 'active' ? matchGroups.activeMatches : matchGroups.finishedMatches
+  const emptyMatchTabMessage =
+    selectedMatchTab === 'active'
+      ? 'Nenhum jogo em aberto para gerenciar.'
+      : 'Nenhum jogo acabado para gerenciar.'
+  const selectedMatchTabLabel =
+    selectedMatchTab === 'active' ? 'admin-tab-jogos-ativos' : 'admin-tab-jogos-acabados'
   const noticeCharactersRemaining = noticeMaxLength - noticeMessage.length
 
   useEffect(() => {
@@ -88,6 +107,12 @@ export function AdminPage() {
       setNoticeMessage(matchNoticeQuery.data.message)
     }
   }, [matchNoticeQuery.data])
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(new Date()), nowRefreshIntervalMs)
+
+    return () => window.clearInterval(intervalId)
+  }, [])
 
   async function refreshAdminData() {
     await queryClient.invalidateQueries({ queryKey: teamsQueryKey })
@@ -516,35 +541,74 @@ export function AdminPage() {
           ) : null}
 
           {!matchesQuery.isPending && !matchesQuery.isError && matches.length > 0 ? (
-            <ul className="mt-4 grid gap-3" aria-label="Partidas para atualizacao de resultado">
-              {matches.map((match) => (
-                <li key={match.id}>
-                  <ResultRow
-                    isDeletingSafe={
-                      deleteMatchMutation.isPending &&
-                      deletingMatch?.matchId === match.id &&
-                      !deletingMatch.deleteBets
-                    }
-                    isDeletingWithBets={
-                      deleteMatchMutation.isPending &&
-                      deletingMatch?.matchId === match.id &&
-                      deletingMatch.deleteBets
-                    }
-                    isDisabled={
-                      updateResultMutation.isPending ||
-                      updateBettingLockMutation.isPending ||
-                      deleteMatchMutation.isPending
-                    }
-                    isLocking={updateBettingLockMutation.isPending && lockingMatchId === match.id}
-                    isSaving={updateResultMutation.isPending}
-                    match={match}
-                    onDelete={handleDeleteMatch}
-                    onSave={handleSaveResult}
-                    onToggleBettingLock={handleToggleBettingLock}
-                  />
-                </li>
-              ))}
-            </ul>
+            <div className="mt-4 grid gap-3">
+              <div
+                aria-label="Abas de gerenciamento de partidas"
+                className="flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-slate-800"
+                role="tablist"
+              >
+                <button
+                  aria-controls="admin-matches-tab-panel"
+                  aria-selected={selectedMatchTab === 'active'}
+                  className={getAdminMatchTabButtonClasses(selectedMatchTab === 'active')}
+                  id="admin-tab-jogos-ativos"
+                  onClick={() => setSelectedMatchTab('active')}
+                  role="tab"
+                  type="button"
+                >
+                  Jogos em aberto ({matchGroups.activeMatches.length})
+                </button>
+                <button
+                  aria-controls="admin-matches-tab-panel"
+                  aria-selected={selectedMatchTab === 'finished'}
+                  className={getAdminMatchTabButtonClasses(selectedMatchTab === 'finished')}
+                  id="admin-tab-jogos-acabados"
+                  onClick={() => setSelectedMatchTab('finished')}
+                  role="tab"
+                  type="button"
+                >
+                  Jogos acabados ({matchGroups.finishedMatches.length})
+                </button>
+              </div>
+
+              <section aria-labelledby={selectedMatchTabLabel} id="admin-matches-tab-panel" role="tabpanel">
+                {visibleMatches.length === 0 ? (
+                  <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                    {emptyMatchTabMessage}
+                  </p>
+                ) : (
+                  <ul className="grid gap-3" aria-label="Partidas para atualizacao de resultado">
+                    {visibleMatches.map((match) => (
+                      <li key={match.id}>
+                        <ResultRow
+                          isDeletingSafe={
+                            deleteMatchMutation.isPending &&
+                            deletingMatch?.matchId === match.id &&
+                            !deletingMatch.deleteBets
+                          }
+                          isDeletingWithBets={
+                            deleteMatchMutation.isPending &&
+                            deletingMatch?.matchId === match.id &&
+                            deletingMatch.deleteBets
+                          }
+                          isDisabled={
+                            updateResultMutation.isPending ||
+                            updateBettingLockMutation.isPending ||
+                            deleteMatchMutation.isPending
+                          }
+                          isLocking={updateBettingLockMutation.isPending && lockingMatchId === match.id}
+                          isSaving={updateResultMutation.isPending}
+                          match={match}
+                          onDelete={handleDeleteMatch}
+                          onSave={handleSaveResult}
+                          onToggleBettingLock={handleToggleBettingLock}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </div>
           ) : null}
 
           {resultError ? <FeedbackMessage tone="error" message={resultError} /> : null}
@@ -679,6 +743,37 @@ function FeedbackMessage({ message, tone }: { message: string; tone: 'error' | '
       : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
 
   return <p className={`mt-3 rounded-md border px-3 py-2 text-sm font-medium ${classes}`}>{message}</p>
+}
+
+function getAdminMatchTabButtonClasses(isSelected: boolean): string {
+  return isSelected
+    ? 'rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400 dark:focus:ring-offset-slate-950'
+    : 'rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900 dark:focus:ring-offset-slate-950'
+}
+
+function splitAdminMatchesByFinishedState(matches: readonly MatchListItem[], now = new Date()): AdminMatchGroups {
+  const activeMatches: MatchListItem[] = []
+  const finishedMatches: MatchListItem[] = []
+
+  for (const match of matches) {
+    if (isAdminFinishedMatch(match, now)) {
+      finishedMatches.push(match)
+    } else {
+      activeMatches.push(match)
+    }
+  }
+
+  return { activeMatches, finishedMatches }
+}
+
+function isAdminFinishedMatch(match: MatchListItem, now = new Date()): boolean {
+  return match.status === 'Finished' || isBeforeToday(parseUtcDate(match.matchDate), now)
+}
+
+function isBeforeToday(date: Date, now: Date): boolean {
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  return date.getTime() < todayStart.getTime()
 }
 
 function formatMaintenanceResult(result: AdminMaintenanceResponse): string {
